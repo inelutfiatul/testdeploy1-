@@ -29,7 +29,7 @@ cache_loader = getattr(st, "cache_resource", None) or getattr(st, "cache", None)
 @cache_loader
 def load_models():
     # Pastikan path benar. Ganti nama file jika perlu.
-    yolo_path = "model/Ine Lutfiatul Hanifah_Laporan 4.pt"
+    yolo_path = "model/Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt"
     clf_path = "model/INELUTFIATULHANIFAH_LAPORAN 2.h5"
 
     if not os.path.exists(yolo_path):
