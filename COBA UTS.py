@@ -91,3 +91,8 @@ if uploaded_file is not None:
             # st.write("Kelas:", labels[class_index])
         except Exception as e:
             st.error(f"Error saat klasifikasi: {e}")
+if boxes is not None and len(boxes) > 0:
+    detected_labels = [result.names[int(cls)] for cls in boxes.cls]
+    st.caption("Objek terdeteksi: " + ", ".join(set(detected_labels)))
+else:
+    st.caption("Tidak ada objek terdeteksi.")
