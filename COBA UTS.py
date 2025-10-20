@@ -1,104 +1,90 @@
 import streamlit as st
-import numpy as np
+from ultralytics import YOLO
 import tensorflow as tf
+from tensorflow.keras.preprocessing import image
+import numpy as np
 from PIL import Image
+import cv2
 import os
 
 # ==========================
-# KONFIGURASI HALAMAN
+# Load Models
 # ==========================
-st.set_page_config(page_title="Emotion Detection App", page_icon="🧠", layout="wide")
+@st.cache_resource
+def load_models():
+    yolo_model = YOLO("model/Ine Lutfiatul Hanifah_Laporan 4.pt")  # Model deteksi objek
+    classifier = tf.keras.models.load_model("model/INELUTFIATULHANIFAH_LAPORAN 2.h5")  # Model klasifikasi
+    return yolo_model, classifier
+
+yolo_model, classifier = load_models()
 
 # ==========================
-# HEADER
+# HEADER / UI AWAL
 # ==========================
+st.set_page_config(page_title="Big Data App", page_icon="🧠", layout="wide")
+
 col1, col2 = st.columns([1, 5])
 
+# Logo dengan proteksi error
 with col1:
-    logo_path = "logo_univ.png"
+    logo_path = "logo_univ.png"  # ubah sesuai nama file kamu
     if os.path.exists(logo_path):
         st.image(logo_path, width=90)
     else:
         st.markdown("🎓 **Big Data Project 2025**")
 
 with col2:
-    st.title("🧠 Aplikasi Deteksi Ekspresi Wajah")
+    st.title("🧠 Aplikasi Deteksi & Klasifikasi Gambar")
     st.caption("Dibuat untuk tugas mata kuliah **Big Data** – Mahasiswa Statistika")
 
 st.markdown("---")
 
 # ==========================
-# LABEL EKSPRESI
+# MENU PILIHAN
 # ==========================
-emotion_labels = ['Jijik 🤢', 'Senang 😄', 'Marah 😡', 'Sedih 😢', 'Takut 😱']
+menu = st.sidebar.selectbox("Pilih Mode:", ["Deteksi Objek (YOLO)", "Klasifikasi Gambar"])
+
+uploaded_file = st.file_uploader("📤 Unggah Gambar", type=["jpg", "jpeg", "png"])
 
 # ==========================
-# UPLOAD GAMBAR
+# PROSES GAMBAR
 # ==========================
-uploaded_file = st.file_uploader("📤 Unggah Gambar Wajah", type=["jpg", "jpeg", "png"])
-
 if uploaded_file is not None:
-    # Baca gambar
-    img = Image.open(uploaded_file).convert('RGB')
-    st.image(img, caption="📷 Gambar Wajah yang Diupload", use_container_width=True)
+    img = Image.open(uploaded_file)
+    st.image(img, caption="🖼️ Gambar Input dari Pengguna", use_container_width=True)
 
-    # ==========================
-    # PREPROCESSING
-    # ==========================
-    st.markdown("### 🔄 Tahapan Preprocessing")
-    st.write("Gambar akan diubah ukurannya menjadi **48x48 piksel** dan dinormalisasi ke rentang [0,1].")
+    if menu == "Deteksi Objek (YOLO)":
+        # Deteksi objek
+        results = yolo_model(img)
+        result_img = results[0].plot()
 
-    img_resized = img.resize((48, 48))  # Sesuaikan dengan input model kamu
-    img_array = np.array(img_resized) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)  # Bentuk (1, 48, 48, 3)
+        st.image(result_img, caption="🔍 Hasil Deteksi Objek menggunakan YOLOv8", use_container_width=True)
 
-    # ==========================
-    # LOAD MODEL
-    # ==========================
-    @st.cache_resource
-    def load_model():
-        return tf.keras.models.load_model("model_ekspresi.h5")
+        # Cek apakah objek terdeteksi
+        if len(results[0].boxes) == 0:
+            st.warning("⚠️ Tidak ada objek terdeteksi pada gambar ini.")
+        else:
+            st.success(f"✅ {len(results[0].boxes)} objek berhasil terdeteksi!")
 
-    model = load_model()
+    elif menu == "Klasifikasi Gambar":
+        # Preprocessing
+        img_resized = img.resize((224, 224))  # sesuaikan ukuran dengan model kamu
+        img_array = image.img_to_array(img_resized)
+        img_array = np.expand_dims(img_array, axis=0)
+        img_array = img_array / 255.0
 
-    # ==========================
-    # PREDIKSI
-    # ==========================
-    predictions = model.predict(img_array)
-    predicted_index = np.argmax(predictions)
-    predicted_label = emotion_labels[predicted_index]
-    confidence = np.max(predictions)
+        # Prediksi
+        prediction = classifier.predict(img_array)
+        class_index = np.argmax(prediction)
+        confidence = np.max(prediction)
 
-    # ==========================
-    # HASIL
-    # ==========================
-    st.markdown("## 🧠 Hasil Analisis Ekspresi Wajah")
+        st.image(img, caption=f"🧠 Hasil Klasifikasi Gambar (Kelas: {class_index}, Probabilitas: {confidence:.2f})",
+                 use_container_width=True)
 
-    st.image(
-        img,
-        caption=f"🧩 Ekspresi Terdeteksi: {predicted_label} (Probabilitas: {confidence:.2f})",
-        use_container_width=True
-    )
-
-    # Menampilkan hasil dengan gaya interaktif
-    st.success(f"✅ Model mengenali ekspresi wajah ini sebagai **{predicted_label}** dengan tingkat keyakinan **{confidence:.2%}**.")
-
-    # Tambahkan penjelasan hasil
-    st.markdown("---")
-    st.markdown("### 📘 Penjelasan Singkat:")
-    st.write("""
-    - **Model ini menggunakan CNN (Convolutional Neural Network)** untuk menganalisis ekspresi wajah.
-    - Gambar wajah yang diunggah akan diklasifikasikan menjadi salah satu dari 5 kategori utama:
-      1. Jijik 🤢  
-      2. Senang 😄  
-      3. Marah 😡  
-      4. Sedih 😢  
-      5. Takut 😱  
-    - Semakin tinggi nilai probabilitas, semakin yakin model terhadap prediksinya.
-    """)
+        st.info(f"🧾 Prediksi kelas: **{class_index}** dengan tingkat keyakinan **{confidence:.2f}**")
 
 else:
-    st.info("📥 Silakan unggah gambar wajah terlebih dahulu untuk memulai analisis.")
+    st.info("📥 Silakan unggah gambar terlebih dahulu untuk memulai analisis.")
 
 # ==========================
 # FOOTER
