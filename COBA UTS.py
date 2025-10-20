@@ -91,8 +91,33 @@ if uploaded_file is not None:
             # st.write("Kelas:", labels[class_index])
         except Exception as e:
             st.error(f"Error saat klasifikasi: {e}")
-if boxes is not None and len(boxes) > 0:
-    detected_labels = [result.names[int(cls)] for cls in boxes.cls]
-    st.caption("Objek terdeteksi: " + ", ".join(set(detected_labels)))
-else:
-    st.caption("Tidak ada objek terdeteksi.")
+if menu == "Deteksi Objek (YOLO)":
+    # Pastikan gambar dalam format RGB
+    np_img = np.array(img.convert("RGB"))
+
+    # Jalankan YOLO
+    results = yolo_model(np_img)
+    result = results[0]  # ambil hasil pertama
+
+    # Plot hasil deteksi (gambar dengan box)
+    plotted = result.plot()  # hasil default BGR
+    plotted_rgb = cv2.cvtColor(plotted, cv2.COLOR_BGR2RGB)
+
+    # Tampilkan gambar hasil deteksi
+    st.image(plotted_rgb, caption="Hasil Deteksi", use_container_width=True)
+
+    # ==============================
+    # TAMBAHKAN CAPTION DI BAWAHNYA
+    # ==============================
+    if result.boxes is not None and len(result.boxes) > 0:
+        # Ambil label dari setiap box
+        detected_labels = [result.names[int(c)] for c in result.boxes.cls]
+        # Hitung berapa kali tiap label muncul
+        label_counts = {label: detected_labels.count(label) for label in set(detected_labels)}
+
+        # Tampilkan teks di bawah gambar
+        st.markdown("### 📦 Objek Terdeteksi:")
+        for label, count in label_counts.items():
+            st.write(f"- **{label}** : {count} kali terdeteksi")
+    else:
+        st.info("⚠️ Tidak ada objek terdeteksi pada gambar ini.")
