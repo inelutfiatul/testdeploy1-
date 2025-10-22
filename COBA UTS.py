@@ -1,92 +1,129 @@
-# ======================================
-# IMPORT LIBRARY
-# ======================================
+import streamlit as st
+from PIL import Image
+import numpy as np
+from ultralytics import YOLO
+import tensorflow as tf
 from tensorflow.keras.preprocessing import image
-from PIL import Image
-import numpy as np
-import streamlit as st
-from ultralytics import YOLO
-import tensorflow as tf
-import streamlit as st
-import torch
-from ultralytics import YOLO
-from PIL import Image
-import tensorflow as tf
-import numpy as np
 import os
 
-# ======================================
-# KONFIGURASI DASAR
-# ======================================
-st.set_page_config(
-    page_title="Dashboard Klasifikasi AI",
-    page_icon="🧠",
-    layout="centered"
-)
+# ==========================
+# CONFIG & STYLE
+# ==========================
+st.set_page_config(page_title="Klasifikasi Ekspresi & Digit", page_icon="🧠", layout="wide")
 
-# ======================================
-# HEADER
-# ======================================
-col1, col2 = st.columns([1, 4])
-
-with col1:
-    logo_path = "LOGO USK.png"
-    if os.path.exists(logo_path):
-        st.image(logo_path, width=90)
-    else:
-        st.markdown("🎓 **Big Data Project 2025**")
-
-with col2:
-    st.title("Aplikasi Klasifikasi Gambar AI")
-    st.markdown("Klasifikasi **Ekspresi Wajah (YOLOv8)** & **Digit Angka (Keras)**")
-
-st.markdown("---")
+st.markdown("""
+    <style>
+    .title {
+        text-align: center;
+        font-size: 32px;
+        color: #4B7BE5;
+        font-weight: bold;
+    }
+    .subheader {
+        color: #333;
+        font-size: 20px;
+        text-align: center;
+        margin-top: -10px;
+    }
+    .result-box {
+        background-color: #F5F7FF;
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+        box-shadow: 0px 2px 10px rgba(0,0,0,0.1);
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # ==========================
-# Load Models
+# LOAD MODELS
 # ==========================
 @st.cache_resource
 def load_models():
-    yolo_model = YOLO("model/Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt")  # Model deteksi objek
-    classifier = tf.keras.models.load_model("model/INELUTFIATULHANIFAH_LAPORAN 2.h5")  # Model klasifikasi
-    return yolo_model, classifier
+    face_model = YOLO("model/Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt")  # Ekspresi wajah
+    digit_model = tf.keras.models.load_model("model/INELUTFIATULHANIFAH_LAPORAN 2.h5")  # Digit angka
+    return face_model, digit_model
 
-yolo_model, classifier = load_models()
+face_model, digit_model = load_models()
 
 # ==========================
-# UI
+# UI HEADER
 # ==========================
-st.title("🧠 Image Classification & Object Detection App")
+st.markdown("<div class='title'>🧠 Dashboard Klasifikasi Ekspresi Wajah & Digit Angka</div>", unsafe_allow_html=True)
+st.markdown("<div class='subheader'>Proyek UAS – Big Data & AI</div>", unsafe_allow_html=True)
+st.write("")
 
-menu = st.sidebar.selectbox("Pilih Mode:", ["Deteksi Objek (YOLO)", "Klasifikasi Gambar"])
+col1, col2 = st.columns([1, 3])
+with col1:
+    st.sidebar.image("logo_univ.png", width=150)
+with col2:
+    st.sidebar.header("⚙️ Pengaturan")
 
-uploaded_file = st.file_uploader("Unggah Gambar", type=["jpg", "jpeg", "png"])
+menu = st.sidebar.radio("Pilih Jenis Klasifikasi:", ["Ekspresi Wajah", "Digit Angka"])
+uploaded_file = st.file_uploader("📤 Unggah Gambar", type=["jpg", "jpeg", "png"])
 
+# ==========================
+# PROCESSING
+# ==========================
 if uploaded_file is not None:
-    img = Image.open(uploaded_file)
-    st.image(img, caption="Gambar yang Diupload", use_container_width=True)
+    img = Image.open(uploaded_file).convert("RGB")
+    st.image(img, caption="🖼️ Gambar Input", use_container_width=True)
 
-    if menu == "Deteksi Objek (YOLO)":
-        # Deteksi objek
-        results = yolo_model(img)
-        result_img = results[0].plot()  # hasil deteksi (gambar dengan box)
-        st.image(result_img, caption="Hasil Deteksi", use_container_width=True)
+    # ===================================
+    # 1️⃣ EKSPRESI WAJAH (.pt)
+    # ===================================
+    if menu == "Ekspresi Wajah":
+        st.subheader("🔍 Hasil Deteksi Ekspresi Wajah")
+        results = face_model(img)
+        annotated_img = results[0].plot()
+        st.image(annotated_img, caption="📸 Deteksi Ekspresi", use_container_width=True)
 
-    elif menu == "Klasifikasi Gambar":
-        # Preprocessing
-        img_resized = img.resize((224, 224))  # sesuaikan ukuran dengan model kamu
-        img_array = image.img_to_array(img_resized)
-        img_array = np.expand_dims(img_array, axis=0)
-        img_array = img_array / 255.0
+        if len(results[0].boxes) == 0:
+            st.warning("⚠️ Tidak ada wajah terdeteksi.")
+        else:
+            for box in results[0].boxes:
+                cls = int(box.cls[0])
+                conf = float(box.conf[0])
+                label = results[0].names[cls].capitalize()
 
-        # Prediksi
-        prediction = classifier.predict(img_array)
-        class_index = np.argmax(prediction)
-        st.write("### Hasil Prediksi:", class_index)
-        st.write("Probabilitas:", np.max(prediction))
+                with st.container():
+                    st.markdown(f"<div class='result-box'><h3>Ekspresi: 😄 {label}</h3><p>Keyakinan: {conf:.2f}</p></div>", unsafe_allow_html=True)
 
-# ======================================
+    # ===================================
+    # 2️⃣ DIGIT ANGKA (.h5)
+    # ===================================
+    elif menu == "Digit Angka":
+        st.subheader("🔢 Hasil Klasifikasi Digit Angka")
+
+        # preprocessing gambar sesuai model digit
+        img_gray = img.convert("L")
+        img_resized = img_gray.resize((28, 28))
+        img_array = np.array(img_resized).reshape(1, 28, 28, 1)
+        img_array = img_array.astype('float32') / 255.0
+
+        pred = digit_model.predict(img_array)
+        pred_label = int(np.argmax(pred))
+        prob = float(np.max(pred))
+
+        # tampilkan hasil
+        colA, colB = st.columns(2)
+        with colA:
+            st.image(img_gray, caption="🖼️ Gambar Uji", use_container_width=True)
+        with colB:
+            parity = "✅ GENAP" if pred_label % 2 == 0 else "⚠️ GANJIL"
+            st.markdown(f"""
+                <div class='result-box'>
+                    <h2>Angka: {pred_label}</h2>
+                    <h4>Akurasi: {prob:.2%}</h4>
+                    <p>{parity}</p>
+                </div>
+            """, unsafe_allow_html=True)
+
+else:
+    st.info("⬆️ Silakan unggah gambar terlebih dahulu untuk melakukan deteksi atau klasifikasi.")
+
+# ==========================
 # FOOTER
-# ======================================
+# ==========================
 st.markdown("---")
-st.caption("© 2025 | Dashboard Klasifikasi AI | Dibuat dengan ❤️ menggunakan Streamlit, YOLOv8 & TensorFlow")
+st.markdown("<p style='text-align:center; color:gray;'>© 2025 – Dibuat oleh Ine Lutfia • Proyek UAS Big Data</p>", unsafe_allow_html=True)
