@@ -92,9 +92,11 @@ if uploaded_file is not None:
         st.subheader("🔢 Hasil Klasifikasi Digit Angka")
 
         # Pra-pemrosesan gambar untuk model .h5
-        img_resized = img.resize((28, 28)).convert("L")  # ubah ke grayscale 28x28
-        img_array = np.array(img_resized) / 255.0
-        img_array = img_array.reshape(1, 28, 28, 1)
+        img_resized = img.resize((28, 28)).convert("L")   # ubah ke grayscale
+        img_array = image.img_to_array(img_resized)
+        img_array = np.expand_dims(img_array, axis=0)     # (1, 28, 28, 1)
+        img_array = img_array / 255.0
+
 
         pred = digit_model.predict(img_array)
         predicted_label = np.argmax(pred)
