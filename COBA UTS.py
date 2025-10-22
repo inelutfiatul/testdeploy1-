@@ -35,16 +35,23 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ==========================
-# LOAD MODELS
-# ==========================
 @st.cache_resource
 def load_models():
-    face_model = YOLO("model/Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt")  # Ekspresi wajah
-    digit_model = tf.keras.models.load_model("model/INELUTFIATULHANIFAH_LAPORAN 2.h5")  # Digit angka
-    return face_model, digit_model
+    face_path = "model/Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt"
+    digit_path = "model/INELUTFIATULHANIFAH_LAPORAN 2.h5"
 
-face_model, digit_model = load_models()
+    # Cek keberadaan file
+    if not os.path.exists(face_path):
+        st.error("❌ File model ekspresi wajah (.pt) tidak ditemukan.")
+        st.stop()
+    if not os.path.exists(digit_path):
+        st.error("❌ File model digit angka (.h5) tidak ditemukan.")
+        st.stop()
+
+    # Load model
+    face_model = YOLO(face_path)
+    digit_model = tf.keras.models.load_model(digit_path)
+    return face_model, digit_model
 
 # ==========================
 # UI HEADER
