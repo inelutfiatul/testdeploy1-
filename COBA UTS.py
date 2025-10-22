@@ -83,28 +83,64 @@ if uploaded_file is not None:
     st.image(img, caption="🖼️ Gambar Input", use_container_width=True)
 
     # ===================================
-    # 1️⃣ EKSPRESI WAJAH (.pt)
-    # ===================================
-    if menu == "Ekspresi Wajah":
-        st.subheader("🔍 Hasil Deteksi Ekspresi Wajah")
-        try:
-            results = face_model(img)
-            annotated_img = results[0].plot()
-            st.image(annotated_img, caption="📸 Deteksi Ekspresi", use_container_width=True)
+# 1️⃣ EKSPRESI WAJAH (.pt)
+# ===================================
+if menu == "Ekspresi Wajah":
+    st.subheader("🔍 Hasil Deteksi Ekspresi Wajah")
 
-            if len(results[0].boxes) == 0:
-                st.warning("⚠️ Tidak ada wajah terdeteksi.")
-            else:
-                for box in results[0].boxes:
-                    cls = int(box.cls[0])
-                    conf = float(box.conf[0])
-                    label = results[0].names[cls].capitalize()
-                    st.markdown(
-                        f"<div class='result-box'><h3>Ekspresi: 😄 {label}</h3><p>Keyakinan: {conf:.2f}</p></div>",
-                        unsafe_allow_html=True
-                    )
-        except Exception as e:
-            st.error(f"❌ Terjadi kesalahan saat deteksi ekspresi: {e}")
+    try:
+        # Jalankan deteksi YOLO
+        results = face_model(img)
+        annotated_img = results[0].plot()
+        st.image(annotated_img, caption="📸 Deteksi Ekspresi", use_container_width=True)
+
+        # Jika tidak ada wajah terdeteksi
+        if len(results[0].boxes) == 0:
+            st.warning("⚠️ Tidak ada wajah terdeteksi. Silakan unggah gambar dengan wajah yang jelas.")
+        else:
+            # Daftar label ekspresi (urutannya harus sama dengan model kamu)
+            ekspresi_labels = ["senang", "sedih", "marah", "takut", "jijik"]
+
+            # Emoji per ekspresi biar menarik 😄
+            emoji_map = {
+                "senang": "😄",
+                "sedih": "😢",
+                "marah": "😡",
+                "takut": "😱",
+                "jijik": "🤢"
+            }
+
+            for box in results[0].boxes:
+                cls = int(box.cls[0]) if box.cls is not None else 0
+                conf = float(box.conf[0]) if box.conf is not None else 0.0
+
+                # Ambil label dari daftar (pastikan index tidak keluar batas)
+                if 0 <= cls < len(ekspresi_labels):
+                    label = ekspresi_labels[cls]
+                else:
+                    label = "Tidak Dikenal"
+
+                emoji = emoji_map.get(label, "🙂")
+
+                st.markdown(
+                    f"""
+                    <div style="
+                        background-color:#f8f9fa;
+                        border-radius:12px;
+                        padding:16px;
+                        margin-top:10px;
+                        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+                        text-align:center;
+                    ">
+                        <h3>Ekspresi: {emoji} <b>{label.capitalize()}</b></h3>
+                        <p style="font-size:16px;">Keyakinan: <b>{conf*100:.2f}%</b></p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+    except Exception as e:
+        st.error(f"❌ Terjadi kesalahan saat deteksi ekspresi: {e}")
 
     # ===================================
     # 2️⃣ DIGIT ANGKA (.h5)
