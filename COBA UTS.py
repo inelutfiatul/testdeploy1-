@@ -1,97 +1,108 @@
 import streamlit as st
-from ultralytics import YOLO
-import tensorflow as tf
-from tensorflow.keras.preprocessing import image
 import numpy as np
+import torch
+import tensorflow as tf
+from tensorflow.keras.models import load_model
 from PIL import Image
-import os
+import matplotlib.pyplot as plt
 
-# ==========================
-# KONFIGURASI HALAMAN
-# ==========================
-st.set_page_config(page_title="Digit Detection & Classification", page_icon="🔢", layout="wide")
+# =============================
+# KONFIGURASI DASHBOARD
+# =============================
+st.set_page_config(
+    page_title="Dashboard Klasifikasi AI",
+    page_icon="🧠",
+    layout="wide"
+)
 
-# ==========================
+st.markdown("<h1 style='text-align:center; color:#6a0dad;'>🧠 Dashboard Klasifikasi AI</h1>", unsafe_allow_html=True)
+st.markdown("<h4 style='text-align:center;'>By Ine Lutfiatul Hanifah | Statistika | Big Data Project 2025</h4>", unsafe_allow_html=True)
+st.markdown("---")
+
+# =============================
 # LOAD MODEL
-# ==========================
+# =============================
 @st.cache_resource
-def load_models():
-    yolo_model = YOLO("model/Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt")  # Deteksi digit
-    classifier = tf.keras.models.load_model("model/INELUTFIATULHANIFAH_LAPORAN 2.h5")  # Klasifikasi ganjil/genap
-    return yolo_model, classifier
+def load_face_model():
+    # model ekspresi wajah (PyTorch)
+    model = torch.load("Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt", map_location=torch.device("cpu"))
+    model.eval()
+    return model
 
-yolo_model, classifier = load_models()
+@st.cache_resource
+def load_digit_model():
+    # model digits (Keras/TensorFlow)
+    return load_model("INELUTFIATULHANIFAH_LAPORAN 2.h5")
 
-# ==========================
-# HEADER
-# ==========================
-col1, col2 = st.columns([1, 5])
-with col1:
-    if os.path.exists("logo_univ.png"):
-        st.image("logo_univ.png", width=90)
+face_model = load_face_model()
+digit_model = load_digit_model()
+
+# =============================
+# TABS UNTUK DUA MODEL
+# =============================
+tab1, tab2 = st.tabs(["😊 Ekspresi Wajah", "🔢 Klasifikasi Digit"])
+
+# =============================
+# TAB 1 - EKSPRESI WAJAH
+# =============================
+with tab1:
+    st.subheader("😊 Deteksi Ekspresi Wajah Menggunakan Model PyTorch (.pt)")
+    uploaded_file_face = st.file_uploader("📸 Upload Gambar Wajah", type=["jpg", "jpeg", "png"], key="face")
+
+    if uploaded_file_face is not None:
+        image_face = Image.open(uploaded_file_face).convert("L").resize((48, 48))
+        st.image(image_face, caption="Gambar yang Diunggah", width=300)
+
+        img_array = np.array(image_face) / 255.0
+        tensor = torch.tensor(img_array).unsqueeze(0).unsqueeze(0).float()
+
+        outputs = face_model(tensor)
+        probs = torch.nn.functional.softmax(outputs, dim=1).detach().numpy()[0]
+        pred_class = np.argmax(probs)
+
+        # Label emosi
+        classes = ["Jijik", "Senang", "Marah", "Sedih", "Takut"]
+        st.success(f"🧠 Ekspresi Terdeteksi: **{classes[pred_class]}**")
+
+        # Grafik probabilitas
+        fig, ax = plt.subplots(figsize=(6,3))
+        ax.bar(classes, probs, color="#6a0dad")
+        ax.set_ylabel("Probabilitas")
+        ax.set_title("Distribusi Prediksi Emosi")
+        st.pyplot(fig)
     else:
-        st.markdown("🎓 **Big Data Project 2025**")
+        st.info("Silakan upload gambar wajah terlebih dahulu.")
 
-with col2:
-    st.title("🔢 Aplikasi Deteksi & Klasifikasi Digit")
-    st.caption("Deteksi angka dengan YOLOv8 dan klasifikasi ganjil/genap dengan CNN")
+# =============================
+# TAB 2 - KLASIFIKASI DIGIT
+# =============================
+with tab2:
+    st.subheader("🔢 Klasifikasi Angka (0–9) Menggunakan Model TensorFlow (.h5)")
+    uploaded_file_digit = st.file_uploader("📤 Upload Gambar Digit", type=["jpg", "jpeg", "png"], key="digit")
 
-st.markdown("---")
+    if uploaded_file_digit is not None:
+        image_digit = Image.open(uploaded_file_digit).convert("L").resize((28, 28))
+        st.image(image_digit, caption="Gambar yang Diunggah", width=200)
 
-# ==========================
-# INPUT GAMBAR
-# ==========================
-uploaded_file = st.file_uploader("📤 Unggah gambar digit", type=["jpg", "jpeg", "png"])
+        img_array = np.array(image_digit).reshape(1, 28, 28, 1) / 255.0
+        prediction = digit_model.predict(img_array)
+        probs = prediction[0]
+        pred_digit = np.argmax(probs)
 
-if uploaded_file is not None:
-    img = Image.open(uploaded_file).convert("RGB")
-    st.image(img, caption="🖼️ Gambar Input", use_container_width=True)
+        st.success(f"🧮 Angka yang Terdeteksi: **{pred_digit}**")
 
-    # ==========================
-    # DETEKSI DENGAN YOLO
-    # ==========================
-    st.subheader("🔍 Hasil Deteksi Digit")
-    results = yolo_model(img)
-    result_img = results[0].plot()
-    st.image(result_img, caption="📦 Deteksi Digit Menggunakan YOLOv8", use_container_width=True)
-
-    # Jika tidak ada objek terdeteksi
-    if len(results[0].boxes) == 0:
-        st.warning("⚠️ Tidak ada digit terdeteksi dalam gambar ini.")
+        # Grafik probabilitas
+        fig2, ax2 = plt.subplots(figsize=(6,3))
+        ax2.bar(range(10), probs, color="#00b4d8")
+        ax2.set_xlabel("Angka")
+        ax2.set_ylabel("Probabilitas")
+        ax2.set_title("Distribusi Prediksi Angka")
+        st.pyplot(fig2)
     else:
-        # ==========================
-        # KLASIFIKASI GANJIL/GENAP
-        # ==========================
-        st.subheader("🧠 Klasifikasi Ganjil / Genap")
+        st.info("Silakan upload gambar digit terlebih dahulu.")
 
-        for i, box in enumerate(results[0].boxes):
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
-            cropped = img.crop((x1, y1, x2, y2))  # Potong bagian digit
-            cropped_resized = cropped.resize((28, 28))  # Ukuran standar MNIST
-            img_array = image.img_to_array(cropped_resized)
-            img_array = np.expand_dims(img_array, axis=0) / 255.0
-
-            prediction = classifier.predict(img_array)
-            class_index = np.argmax(prediction)  # 0-9
-            confidence = np.max(prediction)
-
-            # Tentukan ganjil/genap
-            label = "GENAP" if class_index % 2 == 0 else "GANJIL"
-
-            st.markdown(f"""
-            **Digit {i+1}:**
-            - Prediksi Angka → **{class_index}**
-            - Jenis Angka → 🟢 **{label}**
-            - Keyakinan Model → {confidence:.2f}
-            """)
-
-        st.success("✅ Semua digit berhasil diklasifikasikan!")
-
-else:
-    st.info("📥 Silakan unggah gambar berisi digit untuk memulai deteksi dan klasifikasi.")
-
-# ==========================
+# =============================
 # FOOTER
-# ==========================
+# =============================
 st.markdown("---")
-st.caption("✨ Dibuat oleh **Ine Lutfiatul Hanifah** | Statistika | Big Data Project 2025")
+st.markdown("<p style='text-align:center; color:gray;'>✨ Dibuat oleh <b>Ine Lutfiatul Hanifah</b> | Statistika | Big Data Project 2025</p>", unsafe_allow_html=True)
