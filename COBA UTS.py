@@ -4,87 +4,91 @@ import tensorflow as tf
 from tensorflow.keras.preprocessing import image
 import numpy as np
 from PIL import Image
-import cv2
 import os
 
 # ==========================
-# Load Models
+# KONFIGURASI HALAMAN
+# ==========================
+st.set_page_config(page_title="Digit Detection & Classification", page_icon="🔢", layout="wide")
+
+# ==========================
+# LOAD MODEL
 # ==========================
 @st.cache_resource
 def load_models():
-    yolo_model = YOLO("model/Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt")  # Model deteksi objek
-    classifier = tf.keras.models.load_model("model/INELUTFIATULHANIFAH_LAPORAN 2.h5")  # Model klasifikasi
+    yolo_model = YOLO("model/Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt")  # Deteksi digit
+    classifier = tf.keras.models.load_model("model/INELUTFIATULHANIFAH_LAPORAN 2.h5")  # Klasifikasi ganjil/genap
     return yolo_model, classifier
 
 yolo_model, classifier = load_models()
 
 # ==========================
-# HEADER / UI AWAL
+# HEADER
 # ==========================
-st.set_page_config(page_title="Big Data App", page_icon="🧠", layout="wide")
-
 col1, col2 = st.columns([1, 5])
-
-# Logo dengan proteksi error
 with col1:
-    logo_path = "logo_univ.png"  # ubah sesuai nama file kamu
-    if os.path.exists(logo_path):
-        st.image(logo_path, width=90)
+    if os.path.exists("logo_univ.png"):
+        st.image("logo_univ.png", width=90)
     else:
         st.markdown("🎓 **Big Data Project 2025**")
 
 with col2:
-    st.title("🧠 Aplikasi Deteksi & Klasifikasi Gambar")
-    st.caption("Dibuat untuk tugas mata kuliah **Big Data** – Mahasiswa Statistika")
+    st.title("🔢 Aplikasi Deteksi & Klasifikasi Digit")
+    st.caption("Deteksi angka dengan YOLOv8 dan klasifikasi ganjil/genap dengan CNN")
 
 st.markdown("---")
 
 # ==========================
-# MENU PILIHAN
+# INPUT GAMBAR
 # ==========================
-menu = st.sidebar.selectbox("Pilih Mode:", ["Deteksi Objek (YOLO)", "Klasifikasi Gambar"])
+uploaded_file = st.file_uploader("📤 Unggah gambar digit", type=["jpg", "jpeg", "png"])
 
-uploaded_file = st.file_uploader("📤 Unggah Gambar", type=["jpg", "jpeg", "png"])
-
-# ==========================
-# PROSES GAMBAR
-# ==========================
 if uploaded_file is not None:
-    img = Image.open(uploaded_file)
-    st.image(img, caption="🖼️ Gambar Input dari Pengguna", use_container_width=True)
+    img = Image.open(uploaded_file).convert("RGB")
+    st.image(img, caption="🖼️ Gambar Input", use_container_width=True)
 
-    if menu == "Deteksi Objek (YOLO)":
-        # Deteksi objek
-        results = yolo_model(img)
-        result_img = results[0].plot()
+    # ==========================
+    # DETEKSI DENGAN YOLO
+    # ==========================
+    st.subheader("🔍 Hasil Deteksi Digit")
+    results = yolo_model(img)
+    result_img = results[0].plot()
+    st.image(result_img, caption="📦 Deteksi Digit Menggunakan YOLOv8", use_container_width=True)
 
-        st.image(result_img, caption="🔍 Hasil Deteksi Objek menggunakan YOLOv8", use_container_width=True)
+    # Jika tidak ada objek terdeteksi
+    if len(results[0].boxes) == 0:
+        st.warning("⚠️ Tidak ada digit terdeteksi dalam gambar ini.")
+    else:
+        # ==========================
+        # KLASIFIKASI GANJIL/GENAP
+        # ==========================
+        st.subheader("🧠 Klasifikasi Ganjil / Genap")
 
-        # Cek apakah objek terdeteksi
-        if len(results[0].boxes) == 0:
-            st.warning("⚠️ Tidak ada objek terdeteksi pada gambar ini.")
-        else:
-            st.success(f"✅ {len(results[0].boxes)} objek berhasil terdeteksi!")
+        for i, box in enumerate(results[0].boxes):
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            cropped = img.crop((x1, y1, x2, y2))  # Potong bagian digit
+            cropped_resized = cropped.resize((28, 28))  # Ukuran standar MNIST
+            img_array = image.img_to_array(cropped_resized)
+            img_array = np.expand_dims(img_array, axis=0) / 255.0
 
-    elif menu == "Klasifikasi Gambar":
-        # Preprocessing
-        img_resized = img.resize((224, 224))  # sesuaikan ukuran dengan model kamu
-        img_array = image.img_to_array(img_resized)
-        img_array = np.expand_dims(img_array, axis=0)
-        img_array = img_array / 255.0
+            prediction = classifier.predict(img_array)
+            class_index = np.argmax(prediction)  # 0-9
+            confidence = np.max(prediction)
 
-        # Prediksi
-        prediction = classifier.predict(img_array)
-        class_index = np.argmax(prediction)
-        confidence = np.max(prediction)
+            # Tentukan ganjil/genap
+            label = "GENAP" if class_index % 2 == 0 else "GANJIL"
 
-        st.image(img, caption=f"🧠 Hasil Klasifikasi Gambar (Kelas: {class_index}, Probabilitas: {confidence:.2f})",
-                 use_container_width=True)
+            st.markdown(f"""
+            **Digit {i+1}:**
+            - Prediksi Angka → **{class_index}**
+            - Jenis Angka → 🟢 **{label}**
+            - Keyakinan Model → {confidence:.2f}
+            """)
 
-        st.info(f"🧾 Prediksi kelas: **{class_index}** dengan tingkat keyakinan **{confidence:.2f}**")
+        st.success("✅ Semua digit berhasil diklasifikasikan!")
 
 else:
-    st.info("📥 Silakan unggah gambar terlebih dahulu untuk memulai analisis.")
+    st.info("📥 Silakan unggah gambar berisi digit untuk memulai deteksi dan klasifikasi.")
 
 # ==========================
 # FOOTER
