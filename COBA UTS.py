@@ -99,22 +99,25 @@ if uploaded_file is not None:
 
         # Pra-pemrosesan gambar untuk model .h5
         # Ubah ukuran ke 28x28 (sesuai input model)
-img_resized = img.resize((28, 28))
+if uploaded_file is not None:
+    img = Image.open(uploaded_file)
+    img_resized = img.resize((28, 28))
+    img_gray = img_resized.convert('L')
+    img_array = image.img_to_array(img_gray)
+    img_array = img_array / 255.0
+    img_array = np.expand_dims(img_array, axis=0)
 
-# Konversi ke grayscale
-img_gray = img_resized.convert('L')
-
-# Ubah ke array dan normalisasi
-img_array = image.img_to_array(img_gray)
-img_array = img_array / 255.0
-
-# Tambahkan dimensi batch dan channel agar sesuai (1, 28, 28, 1)
-img_array = np.expand_dims(img_array, axis=0)
-pred = digit_model.predict(img_array)
-
-        pred = digit_model.predict(img_array)
-        predicted_label = np.argmax(pred)
-        confidence = np.max(pred)
+    pred = digit_model.predict(img_array)
+    pred_label = np.argmax(pred)
+    
+    st.image(img, caption="Gambar yang diunggah", use_column_width=True)
+    st.write(f"Prediksi Angka: {pred_label}")
+    
+    # Tambahan: deteksi genap/ganjil
+    if pred_label % 2 == 0:
+        st.success("✅ Angka ini GENAP")
+    else:
+        st.warning("⚠️ Angka ini GANJIL")
 
         st.image(img_resized, caption="🧩 Gambar Setelah Dikonversi (28x28 Grayscale)", width=150)
         st.success(f"✅ Prediksi Angka: **{predicted_label}** (Keyakinan: {confidence:.2f})")
