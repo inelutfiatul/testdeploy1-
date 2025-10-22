@@ -35,6 +35,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# ==========================
+# LOAD MODELS
+# ==========================
 @st.cache_resource
 def load_models():
     face_path = "model/Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt"
@@ -53,6 +56,9 @@ def load_models():
     digit_model = tf.keras.models.load_model(digit_path)
     return face_model, digit_model
 
+# ✅ Load model sebelum UI digunakan
+face_model, digit_model = load_models()
+
 # ==========================
 # UI HEADER
 # ==========================
@@ -60,12 +66,14 @@ st.markdown("<div class='title'>🧠 Dashboard Klasifikasi Ekspresi Wajah & Digi
 st.markdown("<div class='subheader'>Proyek UAS – Big Data & AI</div>", unsafe_allow_html=True)
 st.write("")
 
-col1, col2 = st.columns([1, 3])
-with col1:
-    st.sidebar.image("LOGO USK.png", width=150)
-with col2:
-    st.sidebar.header("⚙️ Pengaturan")
+# Sidebar dengan pengecekan logo
+logo_path = "LOGO USK.png"
+if os.path.exists(logo_path):
+    st.sidebar.image(logo_path, width=150)
+else:
+    st.sidebar.warning("⚠️ Logo tidak ditemukan")
 
+st.sidebar.header("⚙️ Pengaturan")
 menu = st.sidebar.radio("Pilih Jenis Klasifikasi:", ["Ekspresi Wajah", "Digit Angka"])
 uploaded_file = st.file_uploader("📤 Unggah Gambar", type=["jpg", "jpeg", "png"])
 
@@ -81,50 +89,56 @@ if uploaded_file is not None:
     # ===================================
     if menu == "Ekspresi Wajah":
         st.subheader("🔍 Hasil Deteksi Ekspresi Wajah")
-        results = face_model(img)
-        annotated_img = results[0].plot()
-        st.image(annotated_img, caption="📸 Deteksi Ekspresi", use_container_width=True)
+        try:
+            results = face_model(img)
+            annotated_img = results[0].plot()
+            st.image(annotated_img, caption="📸 Deteksi Ekspresi", use_container_width=True)
 
-        if len(results[0].boxes) == 0:
-            st.warning("⚠️ Tidak ada wajah terdeteksi.")
-        else:
-            for box in results[0].boxes:
-                cls = int(box.cls[0])
-                conf = float(box.conf[0])
-                label = results[0].names[cls].capitalize()
+            if len(results[0].boxes) == 0:
+                st.warning("⚠️ Tidak ada wajah terdeteksi.")
+            else:
+                for box in results[0].boxes:
+                    cls = int(box.cls[0])
+                    conf = float(box.conf[0])
+                    label = results[0].names[cls].capitalize()
 
-                with st.container():
-                    st.markdown(f"<div class='result-box'><h3>Ekspresi: 😄 {label}</h3><p>Keyakinan: {conf:.2f}</p></div>", unsafe_allow_html=True)
+                    with st.container():
+                        st.markdown(
+                            f"<div class='result-box'><h3>Ekspresi: 😄 {label}</h3><p>Keyakinan: {conf:.2f}</p></div>",
+                            unsafe_allow_html=True
+                        )
+        except Exception as e:
+            st.error(f"❌ Terjadi kesalahan saat deteksi ekspresi: {e}")
 
     # ===================================
     # 2️⃣ DIGIT ANGKA (.h5)
     # ===================================
     elif menu == "Digit Angka":
         st.subheader("🔢 Hasil Klasifikasi Digit Angka")
+        try:
+            img_gray = img.convert("L")
+            img_resized = img_gray.resize((28, 28))
+            img_array = np.array(img_resized).reshape(1, 28, 28, 1)
+            img_array = img_array.astype('float32') / 255.0
 
-        # preprocessing gambar sesuai model digit
-        img_gray = img.convert("L")
-        img_resized = img_gray.resize((28, 28))
-        img_array = np.array(img_resized).reshape(1, 28, 28, 1)
-        img_array = img_array.astype('float32') / 255.0
+            pred = digit_model.predict(img_array)
+            pred_label = int(np.argmax(pred))
+            prob = float(np.max(pred))
 
-        pred = digit_model.predict(img_array)
-        pred_label = int(np.argmax(pred))
-        prob = float(np.max(pred))
-
-        # tampilkan hasil
-        colA, colB = st.columns(2)
-        with colA:
-            st.image(img_gray, caption="🖼️ Gambar Uji", use_container_width=True)
-        with colB:
-            parity = "✅ GENAP" if pred_label % 2 == 0 else "⚠️ GANJIL"
-            st.markdown(f"""
-                <div class='result-box'>
-                    <h2>Angka: {pred_label}</h2>
-                    <h4>Akurasi: {prob:.2%}</h4>
-                    <p>{parity}</p>
-                </div>
-            """, unsafe_allow_html=True)
+            colA, colB = st.columns(2)
+            with colA:
+                st.image(img_gray, caption="🖼️ Gambar Uji", use_container_width=True)
+            with colB:
+                parity = "✅ GENAP" if pred_label % 2 == 0 else "⚠️ GANJIL"
+                st.markdown(f"""
+                    <div class='result-box'>
+                        <h2>Angka: {pred_label}</h2>
+                        <h4>Akurasi: {prob:.2%}</h4>
+                        <p>{parity}</p>
+                    </div>
+                """, unsafe_allow_html=True)
+        except Exception as e:
+            st.error(f"❌ Terjadi kesalahan saat klasifikasi digit: {e}")
 
 else:
     st.info("⬆️ Silakan unggah gambar terlebih dahulu untuk melakukan deteksi atau klasifikasi.")
