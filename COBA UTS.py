@@ -54,7 +54,6 @@ def load_models():
     digit_model = tf.keras.models.load_model(digit_path)
     return face_model, digit_model
 
-
 # ✅ Load model
 face_model, digit_model = load_models()
 
@@ -65,6 +64,9 @@ st.markdown("<div class='title'>🧠 Dashboard Klasifikasi Ekspresi Wajah & Digi
 st.markdown("<div class='subheader'>Proyek UAS – Big Data & AI</div>", unsafe_allow_html=True)
 st.write("")
 
+# ==========================
+# SIDEBAR
+# ==========================
 logo_path = "LOGO USK.png"
 if os.path.exists(logo_path):
     st.sidebar.image(logo_path, width=150)
@@ -76,96 +78,85 @@ menu = st.sidebar.radio("Pilih Jenis Klasifikasi:", ["Ekspresi Wajah", "Digit An
 uploaded_file = st.file_uploader("📤 Unggah Gambar", type=["jpg", "jpeg", "png"])
 
 # ==========================
-# PROCESSING
+# MAIN LOGIC
 # ==========================
 if uploaded_file is not None:
     img = Image.open(uploaded_file).convert("RGB")
     st.image(img, caption="🖼️ Gambar Input", use_container_width=True)
 
     # ===================================
-# 1️⃣ EKSPRESI WAJAH (.pt)
-# ===================================
-if menu == "Ekspresi Wajah":
-    st.subheader("🔍 Hasil Deteksi Ekspresi Wajah")
+    # 1️⃣ EKSPRESI WAJAH (.pt)
+    # ===================================
+    if menu == "Ekspresi Wajah":
+        st.subheader("🔍 Hasil Deteksi Ekspresi Wajah")
 
-    try:
-        # Jalankan deteksi YOLO
-        results = face_model(img)
-        annotated_img = results[0].plot()
-        st.image(annotated_img, caption="📸 Deteksi Ekspresi", use_container_width=True)
+        try:
+            results = face_model(img)
+            annotated_img = results[0].plot()
+            st.image(annotated_img, caption="📸 Deteksi Ekspresi", use_container_width=True)
 
-        # Jika tidak ada wajah terdeteksi
-        if len(results[0].boxes) == 0:
-            st.warning("⚠️ Tidak ada wajah terdeteksi. Silakan unggah gambar dengan wajah yang jelas.")
-        else:
-            # Daftar label ekspresi (urutannya harus sama dengan model kamu)
-            ekspresi_labels = ["senang", "sedih", "marah", "takut", "jijik"]
+            # Jika tidak ada wajah terdeteksi
+            if len(results[0].boxes) == 0:
+                st.warning("⚠️ Tidak ada wajah terdeteksi. Silakan unggah gambar dengan wajah yang jelas.")
+            else:
+                ekspresi_labels = ["senang", "sedih", "marah", "takut", "jijik"]
+                emoji_map = {
+                    "senang": "😄",
+                    "sedih": "😢",
+                    "marah": "😡",
+                    "takut": "😱",
+                    "jijik": "🤢"
+                }
 
-            # Emoji per ekspresi biar menarik 😄
-            emoji_map = {
-                "senang": "😄",
-                "sedih": "😢",
-                "marah": "😡",
-                "takut": "😱",
-                "jijik": "🤢"
-            }
+                for box in results[0].boxes:
+                    cls = int(box.cls[0]) if box.cls is not None else 0
+                    conf = float(box.conf[0]) if box.conf is not None else 0.0
 
-            for box in results[0].boxes:
-                cls = int(box.cls[0]) if box.cls is not None else 0
-                conf = float(box.conf[0]) if box.conf is not None else 0.0
+                    if 0 <= cls < len(ekspresi_labels):
+                        label = ekspresi_labels[cls]
+                    else:
+                        label = "Tidak Dikenal"
 
-                # Ambil label dari daftar (pastikan index tidak keluar batas)
-                if 0 <= cls < len(ekspresi_labels):
-                    label = ekspresi_labels[cls]
-                else:
-                    label = "Tidak Dikenal"
+                    emoji = emoji_map.get(label, "🙂")
 
-                emoji = emoji_map.get(label, "🙂")
+                    col1, col2 = st.columns([1, 1.2])
+                    with col1:
+                        st.image(annotated_img, caption="📷 Wajah Terdeteksi", use_container_width=True)
+                    with col2:
+                        st.markdown(
+                            f"""
+                            <div class='result-box'>
+                                <h3>Ekspresi: {emoji} <b>{label.capitalize()}</b></h3>
+                                <p style="font-size:16px;">Keyakinan: <b>{conf*100:.2f}%</b></p>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
 
-                st.markdown(
-                    f"""
-                    <div style="
-                        background-color:#f8f9fa;
-                        border-radius:12px;
-                        padding:16px;
-                        margin-top:10px;
-                        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-                        text-align:center;
-                    ">
-                        <h3>Ekspresi: {emoji} <b>{label.capitalize()}</b></h3>
-                        <p style="font-size:16px;">Keyakinan: <b>{conf*100:.2f}%</b></p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-
-    except Exception as e:
-        st.error(f"❌ Terjadi kesalahan saat deteksi ekspresi: {e}")
+        except Exception as e:
+            st.error(f"❌ Terjadi kesalahan saat deteksi ekspresi: {e}")
 
     # ===================================
     # 2️⃣ DIGIT ANGKA (.h5)
     # ===================================
     elif menu == "Digit Angka":
         st.subheader("🔢 Hasil Klasifikasi Digit Angka")
+
         try:
-            # --- AUTO DETEKSI INPUT MODEL ---
             input_shape = digit_model.input_shape
             target_size = (input_shape[1], input_shape[2])
             channels = input_shape[3]
 
-            # --- SESUAIKAN WARNA DENGAN JUMLAH CHANNEL ---
             if channels == 1:
                 img_proc = img.convert("L")
             else:
                 img_proc = img.convert("RGB")
 
-            # --- RESIZE SESUAI MODEL ---
             img_resized = img_proc.resize(target_size)
             img_array = image.img_to_array(img_resized)
             img_array = img_array.astype('float32') / 255.0
             img_array = np.expand_dims(img_array, axis=0)
 
-            # --- PREDIKSI ---
             pred = digit_model.predict(img_array)
             pred_label = int(np.argmax(pred))
             prob = float(np.max(pred))
