@@ -71,4 +71,43 @@ if uploaded_file is not None:
     # 1️⃣ KLASIFIKASI EKSPRESI WAJAH (YOLO)
     # -------------------------------------------------
     if menu == "Ekspresi Wajah":
-        st.subheader("😄
+        st.subheader("😄 Hasil Klasifikasi Ekspresi Wajah")
+
+        results = face_model(img)
+        annotated_img = results[0].plot()
+        st.image(annotated_img, caption="🔍 Deteksi Ekspresi", use_container_width=True)
+
+        if len(results[0].boxes) == 0:
+            st.warning("⚠️ Tidak ada wajah terdeteksi.")
+        else:
+            for box in results[0].boxes:
+                cls = int(box.cls[0])
+                conf = float(box.conf[0])
+                label = results[0].names[cls]
+                st.success(f"✅ Ekspresi: **{label}** ({conf:.2f})")
+# -------------------------------------------------
+    # 2️⃣ KLASIFIKASI DIGIT ANGKA (.H5 / KERAS)
+    # -------------------------------------------------
+    elif menu == "Digit Angka":
+        st.subheader("🔢 Hasil Klasifikasi Digit Angka")
+
+        # Pra-pemrosesan gambar untuk model .h5
+        img_resized = img.resize((28, 28)).convert("L")  # ubah ke grayscale 28x28
+        img_array = np.array(img_resized) / 255.0
+        img_array = img_array.reshape(1, 28, 28, 1)
+
+        pred = digit_model.predict(img_array)
+        predicted_label = np.argmax(pred)
+        confidence = np.max(pred)
+
+        st.image(img_resized, caption="🧩 Gambar Setelah Dikonversi (28x28 Grayscale)", width=150)
+        st.success(f"✅ Prediksi Angka: **{predicted_label}** (Keyakinan: {confidence:.2f})")
+
+else:
+    st.info("📥 Silakan unggah gambar terlebih dahulu.")
+
+# ======================================
+# FOOTER
+# ======================================
+st.markdown("---")
+st.caption("© 2025 | Dashboard Klasifikasi AI | Dibuat dengan ❤️ menggunakan Streamlit, YOLOv8 & TensorFlow")
