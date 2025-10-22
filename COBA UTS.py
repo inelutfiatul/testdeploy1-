@@ -62,7 +62,7 @@ st.write("")
 
 col1, col2 = st.columns([1, 3])
 with col1:
-    st.sidebar.image("logo_univ.png", width=150)
+    st.sidebar.image("LOGO USK.png", width=150)
 with col2:
     st.sidebar.header("⚙️ Pengaturan")
 
