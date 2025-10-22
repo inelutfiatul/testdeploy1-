@@ -52,7 +52,12 @@ def load_models():
     face_model = YOLO(face_path)
     digit_model = tf.keras.models.load_model(digit_path)
     return face_model, digit_model
+# 3. Panggil fungsi
+face_model, digit_model = load_models()
 
+# 4. Gunakan model
+results = face_model(img)
+pred = digit_model.predict(img_array)
 # ==========================
 # UI HEADER
 # ==========================
