@@ -100,19 +100,18 @@ if uploaded_file is not None:
         # Pra-pemrosesan gambar untuk model .h5
         # Ubah ukuran ke 28x28 (sesuai input model)
 if uploaded_file is not None:
-    img = Image.open(uploaded_file)
-    img_resized = img.resize((28, 28))
-    img_gray = img_resized.convert('L')
-    img_array = image.img_to_array(img_gray)
-    img_array = img_array / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
+    img = Image.open(uploaded_file).convert('L')  # ubah ke grayscale
+    img = img.resize((28, 28))  # ubah ukuran ke 28x28
+    img_array = np.array(img)
+    img_array = img_array.reshape(1, 28, 28, 1)  # sesuai model MNIST
+    img_array = img_array.astype('float32') / 255.0
 
     pred = digit_model.predict(img_array)
     pred_label = np.argmax(pred)
-    
+
     st.image(img, caption="Gambar yang diunggah", use_column_width=True)
     st.write(f"Prediksi Angka: {pred_label}")
-    
+
     # Tambahan: deteksi genap/ganjil
     if pred_label % 2 == 0:
         st.success("✅ Angka ini GENAP")
