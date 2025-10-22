@@ -43,7 +43,6 @@ def load_models():
     face_path = "model/Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt"
     digit_path = "model/INELUTFIATULHANIFAH_LAPORAN 2.h5"
 
-    # Cek keberadaan file
     if not os.path.exists(face_path):
         st.error("❌ File model ekspresi wajah (.pt) tidak ditemukan.")
         st.stop()
@@ -51,13 +50,12 @@ def load_models():
         st.error("❌ File model digit angka (.h5) tidak ditemukan.")
         st.stop()
 
-    # Load model
     face_model = YOLO(face_path)
     digit_model = tf.keras.models.load_model(digit_path)
     return face_model, digit_model
 
 
-# ✅ Load model sebelum UI digunakan
+# ✅ Load model
 face_model, digit_model = load_models()
 
 # ==========================
@@ -67,7 +65,6 @@ st.markdown("<div class='title'>🧠 Dashboard Klasifikasi Ekspresi Wajah & Digi
 st.markdown("<div class='subheader'>Proyek UAS – Big Data & AI</div>", unsafe_allow_html=True)
 st.write("")
 
-# Sidebar
 logo_path = "LOGO USK.png"
 if os.path.exists(logo_path):
     st.sidebar.image(logo_path, width=150)
@@ -102,12 +99,10 @@ if uploaded_file is not None:
                     cls = int(box.cls[0])
                     conf = float(box.conf[0])
                     label = results[0].names[cls].capitalize()
-
                     st.markdown(
                         f"<div class='result-box'><h3>Ekspresi: 😄 {label}</h3><p>Keyakinan: {conf:.2f}</p></div>",
                         unsafe_allow_html=True
                     )
-
         except Exception as e:
             st.error(f"❌ Terjadi kesalahan saat deteksi ekspresi: {e}")
 
@@ -117,20 +112,31 @@ if uploaded_file is not None:
     elif menu == "Digit Angka":
         st.subheader("🔢 Hasil Klasifikasi Digit Angka")
         try:
-            # Gunakan RGB (karena model kamu butuh input shape 3 channel)
-            img_rgb = img.convert("RGB")
-            img_resized = img_rgb.resize((28, 28))
+            # --- AUTO DETEKSI INPUT MODEL ---
+            input_shape = digit_model.input_shape
+            target_size = (input_shape[1], input_shape[2])
+            channels = input_shape[3]
+
+            # --- SESUAIKAN WARNA DENGAN JUMLAH CHANNEL ---
+            if channels == 1:
+                img_proc = img.convert("L")
+            else:
+                img_proc = img.convert("RGB")
+
+            # --- RESIZE SESUAI MODEL ---
+            img_resized = img_proc.resize(target_size)
             img_array = image.img_to_array(img_resized)
             img_array = img_array.astype('float32') / 255.0
-            img_array = np.expand_dims(img_array, axis=0)  # (1, 28, 28, 3)
+            img_array = np.expand_dims(img_array, axis=0)
 
+            # --- PREDIKSI ---
             pred = digit_model.predict(img_array)
             pred_label = int(np.argmax(pred))
             prob = float(np.max(pred))
 
             colA, colB = st.columns(2)
             with colA:
-                st.image(img_rgb, caption="🖼️ Gambar Uji", use_container_width=True)
+                st.image(img_resized, caption="🖼️ Gambar Uji", use_container_width=True)
             with colB:
                 parity = "✅ GENAP" if pred_label % 2 == 0 else "⚠️ GANJIL"
                 st.markdown(f"""
