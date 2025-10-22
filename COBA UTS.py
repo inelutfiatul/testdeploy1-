@@ -42,87 +42,48 @@ with col2:
 
 st.markdown("---")
 
-# ======================================
-# LOAD MODEL
-# ======================================
+# ==========================
+# Load Models
+# ==========================
 @st.cache_resource
 def load_models():
-    if not os.path.exists("Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt"):
-        st.error("❌ File model ekspresi_wajah.pt tidak ditemukan!")
-        st.stop()
-    if not os.path.exists("INELUTFIATULHANIFAH_LAPORAN 2.h5"):
-        st.error("❌ File model digit_model.h5 tidak ditemukan!")
-        st.stop()
+    yolo_model = YOLO("model/Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt")  # Model deteksi objek
+    classifier = tf.keras.models.load_model("model/INELUTFIATULHANIFAH_LAPORAN 2.h5")  # Model klasifikasi
+    return yolo_model, classifier
 
-    face_model = YOLO("Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt")
-    digit_model = tf.keras.models.load_model("INELUTFIATULHANIFAH_LAPORAN 2.h5")
-    return face_model, digit_model
+yolo_model, classifier = load_models()
 
-face_model, digit_model = load_models()
+# ==========================
+# UI
+# ==========================
+st.title("🧠 Image Classification & Object Detection App")
 
-# ======================================
-# MENU
-# ======================================
-menu = st.sidebar.radio("📌 Pilih Jenis Klasifikasi:", ["Ekspresi Wajah", "Digit Angka"])
-uploaded_file = st.file_uploader("📤 Unggah Gambar", type=["jpg", "jpeg", "png"])
+menu = st.sidebar.selectbox("Pilih Mode:", ["Deteksi Objek (YOLO)", "Klasifikasi Gambar"])
 
-# ======================================
-# PROSES GAMBAR
-# ======================================
+uploaded_file = st.file_uploader("Unggah Gambar", type=["jpg", "jpeg", "png"])
+
 if uploaded_file is not None:
-    img = Image.open(uploaded_file).convert("RGB")
-    st.image(img, caption="🖼️ Gambar Input", use_container_width=True)
+    img = Image.open(uploaded_file)
+    st.image(img, caption="Gambar yang Diupload", use_container_width=True)
 
-    # -------------------------------------------------
-    # 1️⃣ KLASIFIKASI EKSPRESI WAJAH (YOLO)
-    # -------------------------------------------------
-    if menu == "Ekspresi Wajah":
-        st.subheader("😄 Hasil Klasifikasi Ekspresi Wajah")
+    if menu == "Deteksi Objek (YOLO)":
+        # Deteksi objek
+        results = yolo_model(img)
+        result_img = results[0].plot()  # hasil deteksi (gambar dengan box)
+        st.image(result_img, caption="Hasil Deteksi", use_container_width=True)
 
-        results = face_model(img)
-        annotated_img = results[0].plot()
-        st.image(annotated_img, caption="🔍 Deteksi Ekspresi", use_container_width=True)
+    elif menu == "Klasifikasi Gambar":
+        # Preprocessing
+        img_resized = img.resize((224, 224))  # sesuaikan ukuran dengan model kamu
+        img_array = image.img_to_array(img_resized)
+        img_array = np.expand_dims(img_array, axis=0)
+        img_array = img_array / 255.0
 
-        if len(results[0].boxes) == 0:
-            st.warning("⚠️ Tidak ada wajah terdeteksi.")
-        else:
-            for box in results[0].boxes:
-                cls = int(box.cls[0])
-                conf = float(box.conf[0])
-                label = results[0].names[cls]
-                st.success(f"✅ Ekspresi: **{label}** ({conf:.2f})")
-# -------------------------------------------------
-    # 2️⃣ KLASIFIKASI DIGIT ANGKA (.H5 / KERAS)
-    # -------------------------------------------------
-    elif menu == "Digit Angka":
-        st.subheader("🔢 Hasil Klasifikasi Digit Angka")
-
-        # Pra-pemrosesan gambar untuk model .h5
-        # Ubah ukuran ke 28x28 (sesuai input model)
-if uploaded_file is not None:
-    img = Image.open(uploaded_file).convert('L')  # ubah ke grayscale
-    img = img.resize((28, 28))  # ubah ukuran ke 28x28
-    img_array = np.array(img)
-    img_array = img_array.reshape(1, 28, 28, 1)  # sesuai model MNIST
-    img_array = img_array.astype('float32') / 255.0
-
-    pred = digit_model.predict(img_array)
-    pred_label = np.argmax(pred)
-
-    st.image(img, caption="Gambar yang diunggah", use_column_width=True)
-    st.write(f"Prediksi Angka: {pred_label}")
-
-    # Tambahan: deteksi genap/ganjil
-    if pred_label % 2 == 0:
-        st.success("✅ Angka ini GENAP")
-    else:
-        st.warning("⚠️ Angka ini GANJIL")
-
-        st.image(img_resized, caption="🧩 Gambar Setelah Dikonversi (28x28 Grayscale)", width=150)
-        st.success(f"✅ Prediksi Angka: **{predicted_label}** (Keyakinan: {confidence:.2f})")
-
-else:
-    st.info("📥 Silakan unggah gambar terlebih dahulu.")
+        # Prediksi
+        prediction = classifier.predict(img_array)
+        class_index = np.argmax(prediction)
+        st.write("### Hasil Prediksi:", class_index)
+        st.write("Probabilitas:", np.max(prediction))
 
 # ======================================
 # FOOTER
