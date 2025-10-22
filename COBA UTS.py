@@ -56,6 +56,7 @@ def load_models():
     digit_model = tf.keras.models.load_model(digit_path)
     return face_model, digit_model
 
+
 # ✅ Load model sebelum UI digunakan
 face_model, digit_model = load_models()
 
@@ -66,7 +67,7 @@ st.markdown("<div class='title'>🧠 Dashboard Klasifikasi Ekspresi Wajah & Digi
 st.markdown("<div class='subheader'>Proyek UAS – Big Data & AI</div>", unsafe_allow_html=True)
 st.write("")
 
-# Sidebar dengan pengecekan logo
+# Sidebar
 logo_path = "LOGO USK.png"
 if os.path.exists(logo_path):
     st.sidebar.image(logo_path, width=150)
@@ -102,11 +103,11 @@ if uploaded_file is not None:
                     conf = float(box.conf[0])
                     label = results[0].names[cls].capitalize()
 
-                    with st.container():
-                        st.markdown(
-                            f"<div class='result-box'><h3>Ekspresi: 😄 {label}</h3><p>Keyakinan: {conf:.2f}</p></div>",
-                            unsafe_allow_html=True
-                        )
+                    st.markdown(
+                        f"<div class='result-box'><h3>Ekspresi: 😄 {label}</h3><p>Keyakinan: {conf:.2f}</p></div>",
+                        unsafe_allow_html=True
+                    )
+
         except Exception as e:
             st.error(f"❌ Terjadi kesalahan saat deteksi ekspresi: {e}")
 
@@ -116,10 +117,12 @@ if uploaded_file is not None:
     elif menu == "Digit Angka":
         st.subheader("🔢 Hasil Klasifikasi Digit Angka")
         try:
-            img_gray = img.convert("L")
-            img_resized = img_gray.resize((28, 28))
-            img_array = np.array(img_resized).reshape(1, 28, 28, 1)
+            # Gunakan RGB (karena model kamu butuh input shape 3 channel)
+            img_rgb = img.convert("RGB")
+            img_resized = img_rgb.resize((28, 28))
+            img_array = image.img_to_array(img_resized)
             img_array = img_array.astype('float32') / 255.0
+            img_array = np.expand_dims(img_array, axis=0)  # (1, 28, 28, 3)
 
             pred = digit_model.predict(img_array)
             pred_label = int(np.argmax(pred))
@@ -127,7 +130,7 @@ if uploaded_file is not None:
 
             colA, colB = st.columns(2)
             with colA:
-                st.image(img_gray, caption="🖼️ Gambar Uji", use_container_width=True)
+                st.image(img_rgb, caption="🖼️ Gambar Uji", use_container_width=True)
             with colB:
                 parity = "✅ GENAP" if pred_label % 2 == 0 else "⚠️ GANJIL"
                 st.markdown(f"""
@@ -137,6 +140,7 @@ if uploaded_file is not None:
                         <p>{parity}</p>
                     </div>
                 """, unsafe_allow_html=True)
+
         except Exception as e:
             st.error(f"❌ Terjadi kesalahan saat klasifikasi digit: {e}")
 
