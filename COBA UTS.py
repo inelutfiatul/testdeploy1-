@@ -16,7 +16,7 @@ col1, col2 = st.columns([1, 5])
 
 # Logo
 with col1:
-    logo_path = "logo_univ.png"
+    logo_path = "LOGO USK.png"
     if os.path.exists(logo_path):
         st.image(logo_path, width=90)
     else:
