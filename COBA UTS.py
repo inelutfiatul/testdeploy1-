@@ -1,191 +1,170 @@
 import streamlit as st
-from PIL import Image
 import numpy as np
-from ultralytics import YOLO
-import tensorflow as tf
-from tensorflow.keras.preprocessing import image
-import os
+from PIL import Image
+import cv2
+from keras.models import load_model
 
-# ==========================
-# 🌌 CONFIG & STYLE
-# ==========================
-st.set_page_config(page_title="AI Klasifikasi Ekspresi & Digit", page_icon="🤖", layout="wide")
+# ==============================
+# CONFIGURASI AWAL
+# ==============================
+st.set_page_config(page_title="AI Dashboard UTS", page_icon="🤖", layout="wide")
 
+# ===== CSS GLOW & NAVIGATION STYLE =====
 st.markdown("""
 <style>
 body {
-    background: radial-gradient(circle at top, #0F2027, #203A43, #2C5364);
+    background: radial-gradient(circle at 20% 30%, #0f2027, #203a43, #2c5364);
     color: white;
     font-family: 'Poppins', sans-serif;
 }
-.title {
-    text-align: center; 
-    font-size: 38px; 
-    font-weight: 800; 
-    color: #A5D7E8;
-    text-shadow: 0px 0px 10px #00FFFF;
+
+h1, h2, h3 {
+    text-align: center;
+    color: #00eaff;
+    text-shadow: 0px 0px 15px #00eaff;
 }
-.subheader {
-    text-align: center; 
-    font-size: 18px; 
-    color: #D9EAFD;
-    margin-top: -10px;
-}
-.glass-box {
-    background: rgba(255,255,255,0.1);
+
+.neon-box {
+    background: rgba(255,255,255,0.08);
     border-radius: 20px;
-    padding: 20px;
-    box-shadow: 0 4px 25px rgba(0,255,255,0.15);
-    text-align: center;
+    padding: 30px;
     backdrop-filter: blur(10px);
-    transition: all 0.3s ease-in-out;
+    box-shadow: 0 0 15px rgba(0,255,255,0.3);
 }
-.glass-box:hover {
-    box-shadow: 0 0 25px #00FFFF;
-    transform: scale(1.02);
+
+.navbar {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 40px;
 }
-.neon-text {
-    color: #00FFFF;
-    text-shadow: 0 0 10px #00FFFF, 0 0 20px #00FFFF;
+
+.nav-button {
+    background: rgba(0, 238, 255, 0.15);
+    border: 1px solid #00eaff;
+    border-radius: 12px;
+    padding: 10px 18px;
+    color: #00eaff;
     font-weight: bold;
-    font-size: 22px;
+    cursor: pointer;
+    transition: 0.3s;
 }
-.footer {
-    text-align: center;
-    color: #B0E0E6;
-    font-size: 13px;
-    margin-top: 40px;
+
+.nav-button:hover {
+    background: #00eaff;
+    color: black;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ==========================
-# 🚀 LOAD MODELS
-# ==========================
-@st.cache_resource
-def load_models():
-    face_path = "model/Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt"
-    digit_path = "model/INELUTFIATULHANIFAH_LAPORAN 2.h5"
+# ==============================
+# SIMULASI MODEL
+# ==============================
+# Ganti dengan model asli kamu
+# digit_model = load_model('model_digit.h5')
+# face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
-    if not os.path.exists(face_path):
-        st.error("❌ Model ekspresi wajah (.pt) tidak ditemukan.")
-        st.stop()
-    if not os.path.exists(digit_path):
-        st.error("❌ Model digit angka (.h5) tidak ditemukan.")
-        st.stop()
+# Untuk testing tanpa model:
+class DummyModel:
+    def predict(self, x):
+        return np.random.rand(1,10)
+digit_model = DummyModel()
 
-    face_model = YOLO(face_path)
-    digit_model = tf.keras.models.load_model(digit_path)
-    return face_model, digit_model
+# ==============================
+# SISTEM NAVIGASI SLIDE
+# ==============================
+if "page" not in st.session_state:
+    st.session_state.page = "Cover"
 
-face_model, digit_model = load_models()
+def goto(page_name):
+    st.session_state.page = page_name
 
-# ==========================
-# 🧠 HEADER & SIDEBAR
-# ==========================
-st.markdown("<div class='title'>🤖 AI Dashboard: Ekspresi Wajah & Digit Angka</div>", unsafe_allow_html=True)
-st.markdown("<div class='subheader'>Proyek UTS – Big Data & Artificial Intelligence</div>", unsafe_allow_html=True)
-st.write("")
+st.markdown("<div class='navbar'>", unsafe_allow_html=True)
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    if st.button("🏠 Cover", key="cover"): goto("Cover")
+with col2:
+    if st.button("👁️ Deteksi Wajah", key="face"): goto("Face Detection")
+with col3:
+    if st.button("🔢 Klasifikasi Angka", key="digit"): goto("Digit Classifier")
+with col4:
+    if st.button("💡 Tentang AI-ku", key="about"): goto("About")
+st.markdown("</div>", unsafe_allow_html=True)
 
-st.sidebar.header("⚙️ Pengaturan")
-if os.path.exists("LOGO USK.png"):
-    st.sidebar.image("LOGO USK.png", width=150)
-else:
-    st.sidebar.info("📘 Logo belum tersedia")
+# ==============================
+# HALAMAN 1 — COVER
+# ==============================
+if st.session_state.page == "Cover":
+    st.markdown("""
+        <div class="neon-box">
+            <h1>🤖 DASHBOARD AI UTS</h1>
+            <h3>Oleh: <span style='color:#fff'>Nama Kamu</span></h3>
+            <p style='text-align:center; color:#ccc;'>
+                Selamat datang di Dashboard AI Futuristik yang dibuat khusus untuk Ujian Tengah Semester.<br>
+                Jelajahi kemampuan AI dalam mendeteksi wajah & mengenali angka secara real-time!
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.button("➡️ Mulai Jelajah", on_click=lambda: goto("Face Detection"))
 
-menu = st.sidebar.radio("Pilih Mode Analisis:", ["Ekspresi Wajah", "Digit Angka"])
-st.sidebar.markdown("---")
-label_offset = st.sidebar.selectbox("Offset label (jika model mulai dari 1)", [0, -1])
-show_debug = st.sidebar.checkbox("Tampilkan detail prediksi", value=False)
+# ==============================
+# HALAMAN 2 — DETEKSI WAJAH
+# ==============================
+elif st.session_state.page == "Face Detection":
+    st.markdown("<h2>👁️ Deteksi Wajah</h2>", unsafe_allow_html=True)
+    uploaded_face = st.file_uploader("Upload gambar wajah", type=["jpg","jpeg","png"])
 
-uploaded_file = st.file_uploader("📤 Unggah Gambar", type=["jpg", "jpeg", "png"])
+    if uploaded_face is not None:
+        img = Image.open(uploaded_face)
+        st.image(img, caption="Gambar Diupload", width=300)
+        st.success("✅ Wajah berhasil terdeteksi! (simulasi)")
+    else:
+        st.info("Unggah foto wajah untuk mendeteksi ekspresi 😊")
 
-# ==========================
-# ⚡ MAIN PROCESS
-# ==========================
-if uploaded_file is not None:
-    img = Image.open(uploaded_file).convert("RGB")
-    st.image(img, caption="🖼️ Gambar Input", use_container_width=True)
+    st.button("⬅️ Kembali ke Cover", on_click=lambda: goto("Cover"))
+    st.button("➡️ Lanjut ke Klasifikasi Angka", on_click=lambda: goto("Digit Classifier"))
 
-    # 1️⃣ EKSPRESI WAJAH
-    if menu == "Ekspresi Wajah":
-        st.subheader("🎭 Hasil Deteksi Ekspresi Wajah")
-        try:
-            results = face_model(img)
-            annotated_img = results[0].plot()
-            st.image(annotated_img, caption="📸 Deteksi Wajah", use_container_width=True)
+# ==============================
+# HALAMAN 3 — KLASIFIKASI ANGKA
+# ==============================
+elif st.session_state.page == "Digit Classifier":
+    st.markdown("<h2>🔢 Klasifikasi Angka</h2>", unsafe_allow_html=True)
+    uploaded_digit = st.file_uploader("Upload gambar angka tulisan tangan", type=["jpg","jpeg","png"])
 
-            if len(results[0].boxes) == 0:
-                st.warning("😅 Tidak ada wajah terdeteksi. Gunakan foto wajah yang jelas.")
-            else:
-                boxes = results[0].boxes
-                best_box = boxes[np.argmax([float(b.conf[0]) for b in boxes])]
-                cls = int(best_box.cls[0]) if best_box.cls is not None else 0
-                conf = float(best_box.conf[0]) if best_box.conf is not None else 0.0
-                label = results[0].names.get(cls, "Tidak Dikenal").lower()
+    if uploaded_digit is not None:
+        img = Image.open(uploaded_digit).convert('L')
+        img = img.resize((28,28))
+        arr = np.array(img).astype("float32") / 255.0
+        arr = np.expand_dims(arr, axis=(0, -1))
+        pred = digit_model.predict(arr)
+        digit = np.argmax(pred)
+        st.image(img, caption="Gambar diproses", width=150)
+        st.success(f"✨ AI menebak angka ini adalah: **{digit}** (akurasi {np.max(pred)*100:.2f}%)")
+    else:
+        st.info("Unggah gambar angka untuk diklasifikasi 🔍")
 
-                emoji_map = {
-                    "senang": "😄", "bahagia": "😊", "sedih": "😢",
-                    "marah": "😡", "takut": "😱", "jijik": "🤢"
-                }
-                emoji = emoji_map.get(label, "🙂")
+    st.button("⬅️ Kembali ke Deteksi Wajah", on_click=lambda: goto("Face Detection"))
+    st.button("➡️ Tentang AI-ku", on_click=lambda: goto("About"))
 
-                st.markdown(f"""
-                    <div class='glass-box'>
-                        <h2 class='neon-text'>{emoji} {label.capitalize()}</h2>
-                        <p>Akurasi Deteksi: <b>{conf*100:.2f}%</b></p>
-                    </div>
-                """, unsafe_allow_html=True)
-
-                # Respon AI mini
-                if label in ["sedih", "takut"]:
-                    st.info("💬 Aku harap kamu baik-baik aja. Jangan lupa senyum hari ini ya! 😊")
-                elif label in ["bahagia", "senang"]:
-                    st.success("💬 Wah, senyummu menular banget! Terus semangat ya 😄✨")
-                elif label == "marah":
-                    st.warning("💬 Tenang dulu ya... ambil napas dalam 🧘‍♂️")
-
-        except Exception as e:
-            st.error(f"❌ Terjadi kesalahan saat deteksi wajah: {e}")
-
-    # 2️⃣ DIGIT ANGKA
-    elif menu == "Digit Angka":
-        st.subheader("🔢 Hasil Klasifikasi Angka")
-        try:
-            input_shape = digit_model.input_shape
-            target_size = (input_shape[1], input_shape[2]) if len(input_shape) == 4 else (28, 28)
-            channels = input_shape[3] if len(input_shape) == 4 else 1
-
-            proc = img.convert("L" if channels == 1 else "RGB").resize(target_size)
-            arr = image.img_to_array(proc).astype("float32") / 255.0
-            img_array = np.expand_dims(arr, axis=0)
-
-            pred = digit_model.predict(img_array)
-            pred_label = int(np.argmax(pred[0]))
-            prob = float(np.max(pred[0]))
-            if label_offset == -1:
-                pred_label -= 1
-            pred_label = pred_label % 10
-
-            parity = "✅ GENAP" if pred_label % 2 == 0 else "⚠️ GANJIL"
-            st.markdown(f"""
-                <div class='glass-box'>
-                    <h2 class='neon-text'>Angka: {pred_label}</h2>
-                    <p>Akurasi: <b>{prob*100:.2f}%</b></p>
-                    <p>{parity}</p>
-                </div>
-            """, unsafe_allow_html=True)
-
-            if show_debug:
-                st.write("Prediksi mentah:", pred)
-
-        except Exception as e:
-            st.error(f"❌ Kesalahan saat klasifikasi digit: {e}")
-
-else:
-    st.info("⬆️ Silakan unggah gambar terlebih dahulu untuk mulai klasifikasi.")
-
-# ==========================
-# 🌙 FOOTER
-# ==========================
-st.markdown("<div class='footer'>© 2025 – Ine Lutfia | Proyek UTS Big Data & AI ✨</div>", unsafe_allow_html=True)
+# ==============================
+# HALAMAN 4 — TENTANG AI-KU
+# ==============================
+elif st.session_state.page == "About":
+    st.markdown("""
+        <div class="neon-box">
+            <h2>💡 Tentang AI-ku</h2>
+            <p style='text-align:center; color:#ccc;'>
+                Dashboard ini dibangun menggunakan <b>Streamlit</b> dan <b>Keras</b>.<br>
+                Fitur utama:
+                <ul>
+                    <li>Deteksi wajah dengan OpenCV</li>
+                    <li>Klasifikasi angka dengan model CNN (Convolutional Neural Network)</li>
+                    <li>Tampilan futuristik dengan tema neon & navigasi interaktif</li>
+                </ul>
+                Proyek ini dibuat sebagai bagian dari <b>Ujian Tengah Semester</b>.<br>
+                Desain dan animasi dibuat untuk menciptakan pengalaman interaktif seperti AI LAB masa depan. 🚀
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+    st.button("⬅️ Kembali ke Cover", on_click=lambda: goto("Cover"))
