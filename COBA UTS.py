@@ -4,7 +4,6 @@ import numpy as np
 from ultralytics import YOLO
 import tensorflow as tf
 import os
-import matplotlib.pyplot as plt
 
 # ==========================
 # KONFIGURASI DASAR
@@ -118,7 +117,7 @@ elif st.session_state.page == "Face Detection":
                     <div class='result-box'>
                         <h2>{emoji} Ekspresi: <b>{best_label.capitalize()}</b></h2>
                         <p>{motivasi}</p>
-                        <p>🎯 Akurasi: {best_conf*100:.2f}%</p>
+                        <p>🎯 Keyakinan Model: {best_conf*100:.2f}%</p>
                     </div>
                 """, unsafe_allow_html=True)
 
@@ -136,53 +135,30 @@ elif st.session_state.page == "Digit Classifier":
     uploaded_digit = st.file_uploader("📸 Upload gambar angka tulisan tangan", type=["jpg", "jpeg", "png"])
 
     if uploaded_digit is not None:
-        input_shape = digit_model.input_shape
-        height, width = input_shape[1], input_shape[2]
-        channels = input_shape[3]
-
-        if channels == 1:
-            img = Image.open(uploaded_digit).convert('L')
-        else:
-            img = Image.open(uploaded_digit).convert('RGB')
-
-        img = img.resize((height, width))
-        arr = np.array(img).astype("float32") / 255.0
-
-        if channels == 1 and arr.ndim == 2:
-            arr = np.expand_dims(arr, axis=-1)
-        elif channels == 3 and arr.ndim == 2:
-            arr = np.stack([arr]*3, axis=-1)
-
-        # Balik warna otomatis jika background putih
-        mean_val = np.mean(arr)
-        if mean_val > 0.5:
-            arr = 1 - arr
-
-        arr = np.expand_dims(arr, axis=0)
-
         try:
+            img = Image.open(uploaded_digit).convert('L')  # grayscale
+            img = img.resize((28, 28))  # sesuai input MNIST
+            arr = np.array(img).astype("float32") / 255.0
+            arr = np.expand_dims(arr, axis=(0, -1))  # (1, 28, 28, 1)
+
             pred = digit_model.predict(arr)
             angka = int(np.argmax(pred))
             prob = float(np.max(pred))
+
+            # supaya tidak salah prediksi dengan confidence tinggi palsu
+            if prob < 0.5:
+                st.warning("⚠️ Model kurang yakin dengan prediksi ini, mungkin gambar kurang jelas.")
+            
             parity = "✅ GENAP" if angka % 2 == 0 else "⚠️ GANJIL"
 
             st.image(img, caption="🖼️ Gambar (Preprocessed)", width=150)
             st.markdown(f"""
                 <div class='result-box'>
-                    <h2>Angka: {angka}</h2>
-                    <h4>Akurasi: {prob*100:.2f}%</h4>
+                    <h2>Angka Terdeteksi: <b>{angka}</b></h2>
+                    <p>🎯 Keyakinan Model: {prob*100:.2f}%</p>
                     <p>{parity}</p>
                 </div>
             """, unsafe_allow_html=True)
-
-            # === Tambahan: Visualisasi probabilitas semua angka ===
-            fig, ax = plt.subplots()
-            ax.bar(range(10), pred[0], color="#2F4F9D")
-            ax.set_xticks(range(10))
-            ax.set_xlabel("Angka")
-            ax.set_ylabel("Probabilitas")
-            ax.set_title("Distribusi Prediksi Model")
-            st.pyplot(fig)
 
         except Exception as e:
             st.error(f"🚨 Terjadi kesalahan prediksi: {e}")
@@ -201,13 +177,12 @@ elif st.session_state.page == "About":
     st.markdown("""
         Dashboard ini dibuat sebagai proyek **Ujian Tengah Semester (UTS)** untuk mata kuliah **Big Data & Artificial Intelligence**.  
         Aplikasi ini menggabungkan dua model AI:
-        - 🧠 *Deteksi Ekspresi Wajah* (YOLOv8)
-        - 🔢 *Klasifikasi Angka Tulisan Tangan* (CNN TensorFlow)
+        - 🧠 *Deteksi Ekspresi Wajah* menggunakan YOLOv8  
+        - 🔢 *Klasifikasi Angka Tulisan Tangan* menggunakan CNN TensorFlow  
 
-        🌟 Fitur unggulan:
-        - Desain interaktif & smooth transition  
-        - Pesan motivasi otomatis sesuai ekspresi  
-        - Visualisasi probabilitas angka  
-        - Tampilan mirip slide presentasi  
+        🌟 **Fitur unggulan:**
+        - Desain interaktif & navigasi seperti slide presentasi  
+        - Pesan motivasi otomatis sesuai ekspresi wajah  
+        - Sistem validasi keyakinan model (confidence < 50% diberi peringatan)  
     """)
     st.button("⬅️ Kembali ke Cover", on_click=lambda: goto("Cover"))
