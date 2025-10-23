@@ -150,12 +150,29 @@ elif st.session_state.page == "Digit Classifier":
     uploaded_digit = st.file_uploader("📸 Upload gambar angka tulisan tangan", type=["jpg", "jpeg", "png"])
 
     if uploaded_digit is not None:
-        img = Image.open(uploaded_digit).convert('L')
-        img = img.resize((28, 28))
+        # Deteksi input shape model
+        input_shape = digit_model.input_shape
+        height, width = input_shape[1], input_shape[2]
+        channels = input_shape[3]
+
+        # Sesuaikan konversi channel
+        if channels == 1:
+            img = Image.open(uploaded_digit).convert('L')
+        else:
+            img = Image.open(uploaded_digit).convert('RGB')
+
+        img = img.resize((height, width))
         arr = np.array(img).astype("float32") / 255.0
 
+        # Pastikan array punya shape benar
+        if channels == 1 and arr.ndim == 2:
+            arr = np.expand_dims(arr, axis=-1)
+        elif channels == 3 and arr.ndim == 2:
+            arr = np.stack([arr]*3, axis=-1)
+
+        arr = np.expand_dims(arr, axis=0)  # batch dim
+
         try:
-            arr = np.expand_dims(arr, axis=(0, -1))
             pred = digit_model.predict(arr)
             angka = int(np.argmax(pred))
             prob = float(np.max(pred))
