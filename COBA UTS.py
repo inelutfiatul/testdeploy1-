@@ -3,8 +3,8 @@ from PIL import Image
 import numpy as np
 from ultralytics import YOLO
 import tensorflow as tf
-from tensorflow.keras.preprocessing import image
 import os
+import matplotlib.pyplot as plt
 
 # ==========================
 # KONFIGURASI DASAR
@@ -23,18 +23,6 @@ st.markdown("""
     .result-box {
         background-color:#F8FAFF; padding:20px; border-radius:15px; text-align:center;
         box-shadow:0 2px 15px rgba(0,0,0,0.1); margin-top:20px;
-    }
-    .emoji-rain {
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        overflow: hidden;
-        z-index: -1;
-        animation: fall 10s linear infinite;
-    }
-    @keyframes fall {
-        0% { transform: translateY(-10%); }
-        100% { transform: translateY(100vh); }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -76,7 +64,6 @@ if st.session_state.page == "Cover":
     st.markdown("<div class='title'>🎓 Dashboard UTS – Big Data & AI</div>", unsafe_allow_html=True)
     st.markdown("<div class='subtitle'>Dibuat oleh <b>Ine Lutfia</b> | Universitas Syiah Kuala</div>", unsafe_allow_html=True)
     st.image("LOGO USK.png", width=200)
-    st.markdown("<div class='emoji-rain'>✨ ✨ ✨ ✨</div>", unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -113,7 +100,6 @@ elif st.session_state.page == "Face Detection":
                         best_conf = conf
                         best_label = labels[int(box.cls[0])].lower()
 
-                # Motivasi sesuai ekspresi
                 motivasi = {
                     "senang": "Energi positifmu menular, tetap tersenyum ya! 🌞",
                     "bahagia": "Kamu bahagia banget hari ini, semoga selalu begitu! 💖",
@@ -150,12 +136,10 @@ elif st.session_state.page == "Digit Classifier":
     uploaded_digit = st.file_uploader("📸 Upload gambar angka tulisan tangan", type=["jpg", "jpeg", "png"])
 
     if uploaded_digit is not None:
-        # Deteksi input shape model
         input_shape = digit_model.input_shape
         height, width = input_shape[1], input_shape[2]
         channels = input_shape[3]
 
-        # Sesuaikan konversi channel
         if channels == 1:
             img = Image.open(uploaded_digit).convert('L')
         else:
@@ -164,13 +148,17 @@ elif st.session_state.page == "Digit Classifier":
         img = img.resize((height, width))
         arr = np.array(img).astype("float32") / 255.0
 
-        # Pastikan array punya shape benar
         if channels == 1 and arr.ndim == 2:
             arr = np.expand_dims(arr, axis=-1)
         elif channels == 3 and arr.ndim == 2:
             arr = np.stack([arr]*3, axis=-1)
 
-        arr = np.expand_dims(arr, axis=0)  # batch dim
+        # Balik warna otomatis jika background putih
+        mean_val = np.mean(arr)
+        if mean_val > 0.5:
+            arr = 1 - arr
+
+        arr = np.expand_dims(arr, axis=0)
 
         try:
             pred = digit_model.predict(arr)
@@ -186,6 +174,15 @@ elif st.session_state.page == "Digit Classifier":
                     <p>{parity}</p>
                 </div>
             """, unsafe_allow_html=True)
+
+            # === Tambahan: Visualisasi probabilitas semua angka ===
+            fig, ax = plt.subplots()
+            ax.bar(range(10), pred[0], color="#2F4F9D")
+            ax.set_xticks(range(10))
+            ax.set_xlabel("Angka")
+            ax.set_ylabel("Probabilitas")
+            ax.set_title("Distribusi Prediksi Model")
+            st.pyplot(fig)
 
         except Exception as e:
             st.error(f"🚨 Terjadi kesalahan prediksi: {e}")
@@ -210,6 +207,7 @@ elif st.session_state.page == "About":
         🌟 Fitur unggulan:
         - Desain interaktif & smooth transition  
         - Pesan motivasi otomatis sesuai ekspresi  
+        - Visualisasi probabilitas angka  
         - Tampilan mirip slide presentasi  
     """)
     st.button("⬅️ Kembali ke Cover", on_click=lambda: goto("Cover"))
