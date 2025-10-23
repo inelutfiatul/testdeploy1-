@@ -11,48 +11,65 @@ import time
 # ==========================
 # ⚙️ CONFIG & STYLE
 # ==========================
-st.set_page_config(page_title="AI Dashboard UTS – Ekspresi & Digit", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="🤖 AI Vision UTS", page_icon="🧠", layout="wide")
 
-# --- CUSTOM STYLING ---
 st.markdown("""
     <style>
     body {
-        background: linear-gradient(135deg, #141E30, #243B55);
-        color: white;
+        background: radial-gradient(circle at top, #0F2027, #203A43, #2C5364);
+        color: #E0E0E0;
         font-family: 'Poppins', sans-serif;
     }
     .title {
-        text-align: center; 
-        font-size: 36px; 
-        color: #A5C9FF; 
-        font-weight: 700;
-        text-shadow: 0px 0px 15px #1E90FF;
+        text-align: center;
+        font-size: 40px;
+        font-weight: 800;
+        color: #00FFFF;
+        text-shadow: 0 0 20px #00FFFF;
+        letter-spacing: 2px;
     }
-    .subheader {
-        color: #DDD; 
-        font-size: 20px; 
-        text-align: center; 
+    .subtitle {
+        text-align: center;
+        color: #B8E4F0;
+        font-size: 18px;
         margin-top: -10px;
-        letter-spacing: 0.5px;
+        margin-bottom: 30px;
     }
-    .result-box {
-        background: rgba(255,255,255,0.08);
+    .glass-box {
+        background: rgba(255, 255, 255, 0.06);
         border-radius: 20px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+        backdrop-filter: blur(8px);
         padding: 25px;
         text-align: center;
-        margin-top: 20px;
-        backdrop-filter: blur(8px);
-        transition: 0.4s;
+        transition: 0.3s ease-in-out;
     }
-    .result-box:hover {
-        transform: scale(1.03);
-        box-shadow: 0 0 20px #00B4FF;
+    .glass-box:hover {
+        transform: scale(1.02);
+        box-shadow: 0 0 25px rgba(0, 255, 255, 0.5);
     }
-    .emoji-rain {
+    .neon-text {
+        font-size: 24px;
+        color: #7DF9FF;
+        text-shadow: 0px 0px 12px #00FFFF;
+    }
+    .ai-message {
+        background: rgba(0, 255, 255, 0.05);
+        border-left: 5px solid #00FFFF;
+        padding: 10px 20px;
+        margin: 15px 0;
+        font-style: italic;
+        border-radius: 10px;
+        animation: fadeIn 1.5s;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .emoji-burst {
         text-align: center;
-        font-size: 32px;
-        animation: float 1.5s infinite alternate;
+        font-size: 36px;
+        animation: float 1.2s infinite alternate;
     }
     @keyframes float {
         from { transform: translateY(0px); }
@@ -70,10 +87,10 @@ def load_models():
     digit_path = "model/INELUTFIATULHANIFAH_LAPORAN 2.h5"
 
     if not os.path.exists(face_path):
-        st.error("❌ File model ekspresi wajah (.pt) tidak ditemukan.")
+        st.error("❌ Model ekspresi wajah (.pt) tidak ditemukan.")
         st.stop()
     if not os.path.exists(digit_path):
-        st.error("❌ File model digit angka (.h5) tidak ditemukan.")
+        st.error("❌ Model digit angka (.h5) tidak ditemukan.")
         st.stop()
 
     face_model = YOLO(face_path)
@@ -83,106 +100,91 @@ def load_models():
 face_model, digit_model = load_models()
 
 # ==========================
-# 🎨 HEADER
+# 💬 HEADER
 # ==========================
-st.markdown("<div class='title'>🤖 Dashboard AI – Deteksi Ekspresi & Digit Angka</div>", unsafe_allow_html=True)
-st.markdown("<div class='subheader'>Proyek UTS – Big Data & Artificial Intelligence</div>", unsafe_allow_html=True)
-st.write("")
+st.markdown("<div class='title'>AI Vision Dashboard</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>UTS – Big Data & Artificial Intelligence by Ine Lutfia</div>", unsafe_allow_html=True)
 
 # ==========================
 # 🎛️ SIDEBAR
 # ==========================
-st.sidebar.header("⚙️ Pengaturan Dashboard")
+st.sidebar.title("⚙️ Pengaturan")
 if os.path.exists("LOGO USK.png"):
-    st.sidebar.image("LOGO USK.png", width=140)
-menu = st.sidebar.radio("Pilih Jenis Klasifikasi:", ["Ekspresi Wajah", "Digit Angka"])
-label_offset = st.sidebar.selectbox("Label offset (kalau model melabeli 1..10)", options=[0, -1])
-show_debug = st.sidebar.checkbox("Tampilkan Debug Info", value=False)
+    st.sidebar.image("LOGO USK.png", width=130)
+menu = st.sidebar.radio("Pilih Mode:", ["Ekspresi Wajah 🤖", "Digit Angka 🔢"])
+label_offset = st.sidebar.selectbox("Label Offset", [0, -1])
 st.sidebar.markdown("---")
-st.sidebar.markdown("💡 <i>Dikembangkan oleh Ine Lutfia</i>", unsafe_allow_html=True)
+st.sidebar.caption("💡 Dibuat dengan cinta oleh Ine Lutfia")
 
 uploaded_file = st.file_uploader("📤 Unggah Gambar", type=["jpg", "jpeg", "png"])
 
 # ==========================
-# 🔮 ANIMASI EMOJI (GANTI 'RAIN')
+# ✨ ANIMASI VISUAL
 # ==========================
-def emoji_animation():
-    emojis = ["✨", "💫", "🌟", "🔮", "💎", "🚀", "🤖"]
-    cols = st.columns(7)
-    for i, col in enumerate(cols):
-        with col:
-            st.markdown(f"<div class='emoji-rain'>{random.choice(emojis)}</div>", unsafe_allow_html=True)
+def ai_intro():
+    st.markdown("<div class='emoji-burst'>🌌 🤖 💫</div>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center;'>Sistem AI sedang mempersiapkan analisis...</p>", unsafe_allow_html=True)
+    time.sleep(1.2)
+
+def ai_message(msg):
+    st.markdown(f"<div class='ai-message'>🤖 <b>AI:</b> {msg}</div>", unsafe_allow_html=True)
 
 # ==========================
 # 🔍 LOGIKA KLASIFIKASI
 # ==========================
 if uploaded_file is not None:
+    ai_intro()
     img = Image.open(uploaded_file).convert("RGB")
     st.image(img, caption="🖼️ Gambar Input", use_container_width=True)
-    emoji_animation()  # tampilkan animasi atas
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    # =====================
-    # MODE 1 – EKSPRESI WAJAH
-    # =====================
-    if menu == "Ekspresi Wajah":
-        st.subheader("🎭 Hasil Deteksi Ekspresi Wajah")
+    if menu == "Ekspresi Wajah 🤖":
+        st.subheader("🎭 Deteksi Ekspresi Wajah")
         try:
             results = face_model(img)
             annotated_img = results[0].plot()
             st.image(annotated_img, caption="📸 Deteksi Ekspresi", use_container_width=True)
 
             if len(results[0].boxes) == 0:
-                st.warning("⚠️ Tidak ada wajah terdeteksi. Coba unggah foto wajah lebih jelas.")
+                ai_message("Saya tidak mendeteksi wajah yang jelas. Coba unggah foto close-up ya! 😅")
             else:
                 model_labels = results[0].names
-                emoji_map = {
-                    "senang": "😄", "bahagia": "😊", "sedih": "😢",
-                    "marah": "😡", "takut": "😱", "jijik": "🤢",
-                }
-
                 for box in results[0].boxes:
                     cls = int(box.cls[0]) if box.cls is not None else 0
                     conf = float(box.conf[0]) if box.conf is not None else 0.0
                     label = model_labels.get(cls, "Tidak Dikenal").lower()
-                    emoji = emoji_map.get(label, "🙂")
 
-                    # efek "AI personality"
-                    if label == "sedih":
-                        msg = "Jangan sedih ya! 😊"
-                    elif label == "bahagia" or label == "senang":
-                        msg = "Kamu kelihatan bahagia banget hari ini! 😄"
+                    emoji = {
+                        "senang": "😄", "bahagia": "😊", "sedih": "😢",
+                        "marah": "😡", "takut": "😱", "jijik": "🤢",
+                    }.get(label, "🙂")
+
+                    ai_message(f"Saya mendeteksi ekspresi <b>{label}</b> dengan keyakinan {conf*100:.2f}%. {emoji}")
+                    if label in ["sedih", "takut"]:
+                        ai_message("Hei, kamu tidak sendiri! 😊 Semangat ya 💪")
+                    elif label in ["bahagia", "senang"]:
+                        ai_message("Wah, aku suka lihat senyummu! 😄✨")
                     elif label == "marah":
-                        msg = "Wah... tenang dulu ya 😤"
-                    else:
-                        msg = "Ekspresimu menarik banget!"
+                        ai_message("Tenang dulu ya... napas dalam dulu 😤🫶")
 
                     st.markdown(f"""
-                        <div class='result-box'>
-                            <h2>{emoji} Ekspresi: <b>{label.capitalize()}</b></h2>
-                            <p>🎯 Keyakinan: <b>{conf*100:.2f}%</b></p>
-                            <p>{msg}</p>
+                        <div class='glass-box'>
+                            <p class='neon-text'>{emoji} {label.capitalize()}</p>
+                            <p>Akurasi: <b>{conf*100:.2f}%</b></p>
                         </div>
                     """, unsafe_allow_html=True)
 
         except Exception as e:
-            st.error(f"❌ Terjadi kesalahan saat deteksi ekspresi: {e}")
+            ai_message(f"Terjadi kesalahan: {e}")
 
-    # =====================
-    # MODE 2 – DIGIT ANGKA
-    # =====================
-    elif menu == "Digit Angka":
-        st.subheader("🔢 Hasil Klasifikasi Digit Angka")
+    elif menu == "Digit Angka 🔢":
+        st.subheader("🔢 Klasifikasi Digit Angka")
         try:
             input_shape = digit_model.input_shape
             target_size = (input_shape[1], input_shape[2])
             channels = input_shape[3] if len(input_shape) == 4 else 1
 
-            if channels == 1:
-                proc = img.convert("L")
-            else:
-                proc = img.convert("RGB")
-
-            proc = proc.resize(target_size)
+            proc = img.convert("L" if channels == 1 else "RGB").resize(target_size)
             arr = image.img_to_array(proc).astype("float32") / 255.0
             img_array = np.expand_dims(arr, axis=0)
 
@@ -190,36 +192,32 @@ if uploaded_file is not None:
             pred_label = int(np.argmax(pred[0]))
             prob = float(np.max(pred[0]))
             if label_offset == -1:
-                pred_label = pred_label - 1
-            pred_label = int(pred_label) % 10
+                pred_label -= 1
+            pred_label = pred_label % 10
 
-            col1, col2 = st.columns(2)
-            with col1:
-                st.image(proc, caption="🖼️ Gambar Preprocessed", use_container_width=True)
-            with col2:
-                parity = "✅ GENAP" if pred_label % 2 == 0 else "⚠️ GANJIL"
-                st.markdown(f"""
-                    <div class='result-box'>
-                        <h1>{pred_label}</h1>
-                        <p style='font-size:18px;'>Akurasi: {prob:.2%}</p>
-                        <p>{parity}</p>
-                    </div>
-                """, unsafe_allow_html=True)
-                if prob > 0.9:
-                    st.success("🚀 Model sangat yakin dengan prediksi ini!")
-                else:
-                    st.info("🤔 Keyakinan model sedang, coba gambar lain.")
+            ai_message(f"Saya memprediksi angka ini adalah <b>{pred_label}</b> dengan keyakinan {prob:.2%}.")
+            parity = "GENAP ✅" if pred_label % 2 == 0 else "GANJIL ⚠️"
+            st.markdown(f"""
+                <div class='glass-box'>
+                    <h1 style='color:#00FFFF; text-shadow:0 0 15px #00FFFF;'>{pred_label}</h1>
+                    <p class='neon-text'>{parity}</p>
+                    <p>Akurasi: {prob:.2%}</p>
+                </div>
+            """, unsafe_allow_html=True)
+
+            if prob > 0.9:
+                ai_message("Aku sangat yakin dengan prediksi ini! 🚀")
+            else:
+                ai_message("Hmm... sepertinya aku masih ragu. Coba gambar lain ya 🤔")
 
         except Exception as e:
-            st.error("❌ Terjadi kesalahan saat klasifikasi digit:")
-            st.error(e)
+            ai_message(f"⚠️ Terjadi kesalahan saat klasifikasi: {e}")
 
 else:
-    st.info("⬆️ Silakan unggah gambar terlebih dahulu untuk memulai deteksi.")
-    emoji_animation()
+    ai_message("Silakan unggah gambar agar saya bisa mulai analisisnya ✨")
 
 # ==========================
-# ⚡ FOOTER
+# 🧩 FOOTER
 # ==========================
 st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center; color:#A5C9FF;'>© 2025 • Ine Lutfia • UTS Big Data & AI</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#7DF9FF;'>© 2025 – Ine Lutfia • UTS Big Data & AI</p>", unsafe_allow_html=True)
