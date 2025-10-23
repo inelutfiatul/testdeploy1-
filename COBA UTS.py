@@ -98,7 +98,7 @@ if st.session_state.page == "Cover":
     st.markdown("""
         <div class="neon-box">
             <h1>🤖 DASHBOARD AI UTS</h1>
-            <h3>Oleh: <span style='color:#fff'>Ine Lutfiatul Hanifah</span></h3>
+            <h3>Oleh: <span style='color:#FF69B4'>Ine Lutfiatul Hanifah</span></h3>
             <p style='text-align:center; color:#ccc;'>
                 Selamat datang di Dashboard AI Futuristik yang dibuat khusus untuk Ujian Tengah Semester dan Laporan.<br>
                 Jelajahi kemampuan AI dalam mendeteksi wajah & mengenali angka secara real-time!
