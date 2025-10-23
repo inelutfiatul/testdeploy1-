@@ -5,20 +5,36 @@ from ultralytics import YOLO
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image
 import os
-from streamlit_extras.let_it_rain import rain
 
 # ==========================
 # KONFIGURASI DASAR
 # ==========================
 st.set_page_config(page_title="UTS Dashboard – Ine Lutfia", page_icon="🤖", layout="wide")
 
+# ==== STYLE DASHBOARD ====
 st.markdown("""
     <style>
-    .title { text-align:center; font-size:38px; color:#4169E1; font-weight:bold; }
-    .subtitle { text-align:center; font-size:18px; color:gray; margin-top:-15px; }
+    body {
+        background: linear-gradient(135deg, #E0EAFC, #CFDEF3);
+        font-family: 'Poppins', sans-serif;
+    }
+    .title { text-align:center; font-size:40px; color:#2F4F9D; font-weight:bold; }
+    .subtitle { text-align:center; font-size:18px; color:gray; margin-top:-10px; }
     .result-box {
-        background-color:#F3F6FF; padding:20px; border-radius:20px; text-align:center;
-        box-shadow:0px 2px 10px rgba(0,0,0,0.1); margin-top:15px;
+        background-color:#F8FAFF; padding:20px; border-radius:15px; text-align:center;
+        box-shadow:0 2px 15px rgba(0,0,0,0.1); margin-top:20px;
+    }
+    .emoji-rain {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        overflow: hidden;
+        z-index: -1;
+        animation: fall 10s linear infinite;
+    }
+    @keyframes fall {
+        0% { transform: translateY(-10%); }
+        100% { transform: translateY(100vh); }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -60,8 +76,8 @@ if st.session_state.page == "Cover":
     st.markdown("<div class='title'>🎓 Dashboard UTS – Big Data & AI</div>", unsafe_allow_html=True)
     st.markdown("<div class='subtitle'>Dibuat oleh <b>Ine Lutfia</b> | Universitas Syiah Kuala</div>", unsafe_allow_html=True)
     st.image("LOGO USK.png", width=200)
-    rain(emoji="💡", font_size=35, falling_speed=5, animation_length="infinite")
-    st.write("")
+    st.markdown("<div class='emoji-rain'>✨ ✨ ✨ ✨</div>", unsafe_allow_html=True)
+
     col1, col2 = st.columns(2)
     with col1:
         if st.button("😃 Deteksi Ekspresi Wajah"):
@@ -71,7 +87,7 @@ if st.session_state.page == "Cover":
             goto("Digit Classifier")
 
 # ==========================
-# HALAMAN EKSPRESI WAJAH
+# HALAMAN DETEKSI EKSPRESI
 # ==========================
 elif st.session_state.page == "Face Detection":
     st.markdown("<h2>🧠 Deteksi Ekspresi Wajah</h2>", unsafe_allow_html=True)
@@ -84,62 +100,44 @@ elif st.session_state.page == "Face Detection":
         try:
             results = face_model(img)
             annotated = results[0].plot()
-            st.image(annotated, caption="📸 Hasil Deteksi Wajah", use_container_width=True)
+            st.image(annotated, caption="📸 Hasil Deteksi", use_container_width=True)
 
             if len(results[0].boxes) == 0:
                 st.warning("⚠️ Tidak ada wajah terdeteksi.")
             else:
                 labels = results[0].names
-                emoji_map = {
-                    "senang": "😄", "bahagia": "😊", "sedih": "😢",
-                    "marah": "😡", "takut": "😱", "jijik": "🤢"
-                }
-
-                # Ambil hasil dengan confidence tertinggi
-                best_conf = 0
-                best_label = "tidak dikenali"
+                best_conf, best_label = 0, "tidak dikenali"
                 for box in results[0].boxes:
                     conf = float(box.conf[0])
                     if conf > best_conf:
                         best_conf = conf
                         best_label = labels[int(box.cls[0])].lower()
 
-                # Pesan motivasi sesuai ekspresi
-                deskripsi_map = {
-                    "senang": "Kamu terlihat bahagia hari ini, teruskan energi positifnya ya! 🌞",
-                    "bahagia": "Senyummu menular, tetap semangat dan sebarkan kebaikan! ✨",
-                    "sedih": "Jangan khawatir, setiap badai pasti berlalu. 💙",
-                    "marah": "Tarik napas dulu ya... kadang hal kecil bisa kita maafkan. 🌿",
-                    "takut": "Tenang, kamu lebih kuat dari yang kamu kira. 💪",
-                    "jijik": "Mungkin itu bikin nggak nyaman, tapi kamu tetap keren kok. 😅",
-                }
-                deskripsi = deskripsi_map.get(best_label, "Ekspresimu unik! Terus tampil apa adanya. 💫")
+                # Motivasi sesuai ekspresi
+                motivasi = {
+                    "senang": "Energi positifmu menular, tetap tersenyum ya! 🌞",
+                    "bahagia": "Kamu bahagia banget hari ini, semoga selalu begitu! 💖",
+                    "sedih": "Semua akan baik-baik saja, percayalah 🌧️",
+                    "marah": "Tenangkan hati dulu, kamu lebih hebat dari emosimu 💪",
+                    "takut": "Rasa takut itu wajar, tapi kamu berani menghadapi! 🌿",
+                    "jijik": "Wajar merasa begitu, tapi kamu tetap keren kok 😅"
+                }.get(best_label, "Ekspresimu unik banget! 🌈")
 
-                emoji = emoji_map.get(best_label, "🙂")
+                emoji = {
+                    "senang": "😄", "bahagia": "😊", "sedih": "😢",
+                    "marah": "😡", "takut": "😱", "jijik": "🤢"
+                }.get(best_label, "🙂")
 
                 st.markdown(f"""
                     <div class='result-box'>
                         <h2>{emoji} Ekspresi: <b>{best_label.capitalize()}</b></h2>
-                        <p style="font-size:17px;">{deskripsi}</p>
-                        <p>🎯 Keyakinan: {best_conf*100:.2f}%</p>
+                        <p>{motivasi}</p>
+                        <p>🎯 Akurasi: {best_conf*100:.2f}%</p>
                     </div>
                 """, unsafe_allow_html=True)
 
-                # Efek animasi sesuai emosi
-                if best_label in ["senang", "bahagia"]:
-                    rain(emoji="✨", font_size=25, falling_speed=5, animation_length="infinite")
-                elif best_label == "sedih":
-                    rain(emoji="💧", font_size=20, falling_speed=6, animation_length="infinite")
-                elif best_label == "marah":
-                    rain(emoji="🔥", font_size=25, falling_speed=4, animation_length="infinite")
-                elif best_label == "takut":
-                    rain(emoji="😨", font_size=25, falling_speed=5, animation_length="infinite")
-
         except Exception as e:
             st.error(f"❌ Terjadi kesalahan saat deteksi ekspresi: {e}")
-
-    else:
-        st.info("⬆️ Unggah gambar wajah untuk mendeteksi ekspresi.")
 
     st.button("➡️ Lanjut ke Klasifikasi Angka", on_click=lambda: goto("Digit Classifier"))
     st.button("⬅️ Kembali ke Cover", on_click=lambda: goto("Cover"))
@@ -156,17 +154,8 @@ elif st.session_state.page == "Digit Classifier":
         img = img.resize((28, 28))
         arr = np.array(img).astype("float32") / 255.0
 
-        input_shape = digit_model.input_shape
-
         try:
-            # Auto fix input shape
-            if len(input_shape) == 4:
-                arr = np.expand_dims(arr, axis=(0, -1))
-            elif len(input_shape) == 3:
-                arr = np.expand_dims(arr, axis=0)
-            else:
-                raise ValueError(f"Struktur input tidak dikenali: {input_shape}")
-
+            arr = np.expand_dims(arr, axis=(0, -1))
             pred = digit_model.predict(arr)
             angka = int(np.argmax(pred))
             prob = float(np.max(pred))
@@ -181,12 +170,6 @@ elif st.session_state.page == "Digit Classifier":
                 </div>
             """, unsafe_allow_html=True)
 
-            # Efek tambahan untuk angka genap/ganjil
-            if angka % 2 == 0:
-                rain(emoji="💫", font_size=20, falling_speed=5, animation_length="infinite")
-            else:
-                rain(emoji="🎈", font_size=20, falling_speed=6, animation_length="infinite")
-
         except Exception as e:
             st.error(f"🚨 Terjadi kesalahan prediksi: {e}")
 
@@ -194,24 +177,22 @@ elif st.session_state.page == "Digit Classifier":
         st.info("⬆️ Upload gambar angka untuk klasifikasi")
 
     st.button("⬅️ Kembali ke Ekspresi", on_click=lambda: goto("Face Detection"))
-    st.button("➡️ Tentang AI-ku", on_click=lambda: goto("About"))
+    st.button("➡️ Tentang", on_click=lambda: goto("About"))
 
 # ==========================
-# HALAMAN TENTANG
+# HALAMAN ABOUT
 # ==========================
 elif st.session_state.page == "About":
     st.markdown("<h2>🤖 Tentang Aplikasi AI-ku</h2>", unsafe_allow_html=True)
     st.markdown("""
-        Dashboard ini dibuat sebagai proyek **Ujian Tengah Semester (UTS)** mata kuliah **Big Data & Artificial Intelligence**.  
-        Aplikasi ini menggabungkan dua kemampuan AI:
-        - 🧠 *Deteksi ekspresi wajah* menggunakan model YOLOv8
-        - 🔢 *Klasifikasi angka tulisan tangan* menggunakan model CNN (TensorFlow)
+        Dashboard ini dibuat sebagai proyek **Ujian Tengah Semester (UTS)** untuk mata kuliah **Big Data & Artificial Intelligence**.  
+        Aplikasi ini menggabungkan dua model AI:
+        - 🧠 *Deteksi Ekspresi Wajah* (YOLOv8)
+        - 🔢 *Klasifikasi Angka Tulisan Tangan* (CNN TensorFlow)
 
-        Fitur unggulan:
-        - Desain interaktif dan animasi per ekspresi 🎨  
-        - Kalimat motivasional yang berubah sesuai hasil deteksi 💬  
-        - Navigasi seperti slide presentasi 📊  
-        - Anti-crash: auto fix input shape 🔧  
+        🌟 Fitur unggulan:
+        - Desain interaktif & smooth transition  
+        - Pesan motivasi otomatis sesuai ekspresi  
+        - Tampilan mirip slide presentasi  
     """)
-    rain(emoji="✨", font_size=25, falling_speed=6, animation_length="infinite")
     st.button("⬅️ Kembali ke Cover", on_click=lambda: goto("Cover"))
