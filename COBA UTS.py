@@ -1,8 +1,8 @@
 import streamlit as st
-import cv2
 import numpy as np
+import cv2
 from tensorflow.keras.models import load_model
-from streamlit_drawable_canvas import st_canvas
+from PIL import Image
 
 # =========================
 # SETTING DASAR APLIKASI
@@ -12,80 +12,88 @@ st.set_page_config(page_title="UTS AI Dashboard", page_icon="🤖", layout="wide
 st.markdown("""
     <style>
     .main {
-        background: linear-gradient(135deg, #e0f7fa, #fce4ec);
+        background: linear-gradient(135deg, #fdfbfb, #ebedee);
     }
     .title {
-        font-size: 45px; 
-        font-weight: 700; 
+        font-size: 42px; 
+        font-weight: 800; 
         color: #2c3e50;
         text-align: center;
+        letter-spacing: 1px;
     }
     .subtitle {
-        font-size: 20px;
+        font-size: 18px;
         text-align: center;
-        color: #34495e;
+        color: #555;
     }
     .result-box {
-        background-color: white;
+        background-color: #ffffff;
         border-radius: 15px;
         padding: 25px;
         margin-top: 20px;
         text-align: center;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
     </style>
 """, unsafe_allow_html=True)
 
 # =========================
-# NAVIGASI UNIK (SLIDE)
+# NAVIGASI / SLIDE HALAMAN
 # =========================
-st.sidebar.title("🌈 Navigasi Halaman")
-page = st.sidebar.radio("Pilih Halaman:", ["🏠 Cover", "😊 Deteksi Ekspresi Wajah", "🔢 Klasifikasi Angka"])
+st.sidebar.title("🌈 Navigasi")
+page = st.sidebar.radio("Pilih Halaman:", ["🏠 Cover", "😊 Deteksi Ekspresi", "🔢 Klasifikasi Angka"])
 
 # =========================
 # HALAMAN 1: COVER
 # =========================
 if page == "🏠 Cover":
-    st.markdown("<div class='title'>DASHBOARD KLASIFIKASI CERDAS 🤖</div>", unsafe_allow_html=True)
-    st.markdown("<div class='subtitle'>Projek UTS • Deteksi Ekspresi & Angka Digital</div>", unsafe_allow_html=True)
+    st.markdown("<div class='title'>✨ DASHBOARD KLASIFIKASI CERDAS ✨</div>", unsafe_allow_html=True)
+    st.markdown("<div class='subtitle'>Projek UTS • Deteksi Ekspresi & Klasifikasi Angka</div>", unsafe_allow_html=True)
     st.markdown("---")
 
     col1, col2 = st.columns(2)
     with col1:
-        st.image("https://i.imgur.com/MHAdK1y.gif", caption="AI & Deep Learning", use_container_width=True)
+        st.image("https://i.imgur.com/QYyYz1U.gif", caption="Artificial Intelligence in Action", use_container_width=True)
     with col2:
         st.write("""
-        ### 👋 Selamat Datang!
-        Dashboard ini dibuat sebagai **projek UTS** yang memadukan dua fitur kecerdasan buatan:
-        1. 😄 **Deteksi Ekspresi Wajah** — mengenali emosi manusia seperti senang, sedih, marah, takut, atau jijik.  
-        2. 🔢 **Klasifikasi Angka Tulisan Tangan** — mengenali angka dari gambar, lalu mengelompokkannya menjadi **genap** atau **ganjil**.  
+        ### 🤖 Selamat Datang!
+        Dashboard ini merupakan projek **UTS Big Data & AI** yang berisi dua fitur utama:
+        1. 😄 **Deteksi Ekspresi Wajah** — mengenali emosi manusia seperti *senang, sedih, marah, takut, atau jijik*.  
+        2. 🔢 **Klasifikasi Angka Tulisan Tangan** — mengenali angka dari gambar dan menentukan apakah **Genap** atau **Ganjil**.  
 
-        Semua ini berjalan menggunakan **model deep learning (CNN)** yang diproses langsung di Streamlit.
+        Semua ini menggunakan **Deep Learning Model (CNN)** yang dijalankan langsung di Streamlit!  
         """)
     st.markdown("---")
-    st.success("Klik menu di sidebar ➡️ untuk mulai menggunakan fitur!")
+    st.success("Gunakan menu di sidebar ➡️ untuk berpindah halaman!")
 
 # =========================
-# HALAMAN 2: DETEKSI EKSPRESI WAJAH
+# HALAMAN 2: DETEKSI EKSPRESI
 # =========================
-elif page == "😊 Deteksi Ekspresi Wajah":
-    st.markdown("<div class='title'>Deteksi Ekspresi Wajah 😃</div>", unsafe_allow_html=True)
-    st.markdown("<div class='subtitle'>Unggah foto wajahmu untuk mendeteksi emosi!</div>", unsafe_allow_html=True)
+elif page == "😊 Deteksi Ekspresi":
+    st.markdown("<div class='title'>😊 Deteksi Ekspresi Wajah</div>", unsafe_allow_html=True)
+    st.markdown("<div class='subtitle'>Unggah gambar wajahmu dan lihat hasil analisis emosi AI!</div>", unsafe_allow_html=True)
 
-    face_model = load_model("face_emotion_model.h5")  # pastikan model ini ada
-    uploaded_file = st.file_uploader("📸 Upload Gambar Wajah", type=["jpg", "png", "jpeg"])
+    uploaded_file = st.file_uploader("📸 Upload Gambar Wajah", type=["jpg", "jpeg", "png"])
 
     if uploaded_file is not None:
-        file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
-        img = cv2.imdecode(file_bytes, 1)
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        resized = cv2.resize(gray, (48, 48)) / 255.0
-        arr = resized.reshape(1, 48, 48, 1)
+        img = Image.open(uploaded_file).convert("RGB")
+        img_array = np.array(img)
+
+        # model ekspresi wajah (pastikan sudah ada di folder)
+        try:
+            face_model = load_model("face_emotion_model.h5")
+        except:
+            st.error("❌ Model ekspresi wajah tidak ditemukan! Harap pastikan file 'face_emotion_model.h5' ada.")
+            st.stop()
+
+        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+        gray = cv2.resize(gray, (48, 48)) / 255.0
+        arr = gray.reshape(1, 48, 48, 1)
 
         pred = face_model.predict(arr)
         label_map = ['marah', 'jijik', 'takut', 'senang', 'sedih', 'bahagia']
-        best_label = label_map[np.argmax(pred)]
-        best_conf = np.max(pred)
+        label = label_map[np.argmax(pred)]
+        conf = np.max(pred)
 
         emoji_map = {
             "senang": "😊",
@@ -95,67 +103,65 @@ elif page == "😊 Deteksi Ekspresi Wajah":
             "takut": "😨",
             "jijik": "🤢"
         }
-        deskripsi_map = {
-            "senang": "Kamu terlihat bahagia hari ini, teruskan energi positifnya ya! 🌞",
-            "bahagia": "Senyummu menular, tetap semangat dan sebarkan kebaikan! ✨",
-            "sedih": "Jangan khawatir, setiap badai pasti berlalu. 💙",
-            "marah": "Tarik napas dulu ya... kadang hal kecil bisa kita maafkan. 🌿",
-            "takut": "Tenang, kamu lebih kuat dari yang kamu kira. 💪",
-            "jijik": "Mungkin itu bikin nggak nyaman, tapi kamu tetap keren kok. 😅",
+        text_map = {
+            "senang": "Kamu terlihat bahagia hari ini! 🌈",
+            "bahagia": "Senyummu menular, terus semangat ya! ☀️",
+            "sedih": "Tak apa sedih sebentar, besok pasti cerah lagi. 💙",
+            "marah": "Tenang... jangan terbawa emosi ya. 🌿",
+            "takut": "Berani menghadapi ketakutan adalah langkah besar! 💪",
+            "jijik": "Mungkin hal itu tidak nyaman, tapi kamu tetap hebat 😅"
         }
 
-        emoji = emoji_map.get(best_label, "🙂")
-        deskripsi = deskripsi_map.get(best_label, "Ekspresimu unik! Terus tampil apa adanya. 💫")
+        emoji = emoji_map.get(label, "🙂")
+        pesan = text_map.get(label, "Ekspresimu unik dan menarik! ✨")
 
-        st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), caption="Gambar Diuji", use_container_width=True)
+        st.image(img, caption="Gambar yang Diuji", use_container_width=True)
         st.markdown(f"""
-            <div class='result-box'>
-                <h2>{emoji} Ekspresi: <b>{best_label.capitalize()}</b></h2>
-                <p style="font-size:17px;">{deskripsi}</p>
-                <p>🎯 Keyakinan: {best_conf*100:.2f}%</p>
-            </div>
+        <div class='result-box'>
+            <h2>{emoji} Ekspresi: <b>{label.capitalize()}</b></h2>
+            <p>{pesan}</p>
+            <p>🎯 Keyakinan: <b>{conf*100:.2f}%</b></p>
+        </div>
         """, unsafe_allow_html=True)
 
 # =========================
 # HALAMAN 3: KLASIFIKASI ANGKA
 # =========================
 elif page == "🔢 Klasifikasi Angka":
-    st.markdown("<div class='title'>Klasifikasi Angka Tulisan Tangan ✍️</div>", unsafe_allow_html=True)
-    st.markdown("<div class='subtitle'>Gambarlah angka, lalu sistem akan mengenali dan menentukan apakah itu Genap atau Ganjil!</div>", unsafe_allow_html=True)
+    st.markdown("<div class='title'>🔢 Klasifikasi Angka Tulisan Tangan</div>", unsafe_allow_html=True)
+    st.markdown("<div class='subtitle'>Unggah gambar angka dan lihat hasil prediksi AI!</div>", unsafe_allow_html=True)
 
-    digit_model = load_model("digit_model.h5")  # pastikan model ada
+    uploaded_digit = st.file_uploader("📤 Upload Gambar Angka (hitam di latar putih)", type=["jpg", "jpeg", "png"])
 
-    canvas_result = st_canvas(
-        fill_color="#000000",
-        stroke_width=10,
-        stroke_color="#FFFFFF",
-        background_color="#000000",
-        height=200,
-        width=200,
-        drawing_mode="freedraw",
-        key="canvas",
-    )
+    if uploaded_digit is not None:
+        img = Image.open(uploaded_digit).convert("L")
+        img_resized = img.resize((28, 28))
+        arr = np.array(img_resized) / 255.0
+        arr = arr.reshape(1, 28, 28, 1)
 
-    if st.button("🔍 Deteksi Angka"):
-        if canvas_result.image_data is not None:
-            img = canvas_result.image_data
-            img = cv2.cvtColor(img, cv2.COLOR_RGBA2GRAY)
-            img = cv2.resize(img, (28, 28))
-            img = cv2.dilate(img, np.ones((2,2), np.uint8), iterations=1)
-            img = cv2.erode(img, np.ones((2,2), np.uint8), iterations=1)
-            img = 255 - img  # inversi warna
-            img = img / 255.0
-            arr = img.reshape(1, 28, 28, 1)
+        try:
+            digit_model = load_model("digit_model.h5")
+        except:
+            st.error("❌ Model digit angka tidak ditemukan! Harap pastikan file 'digit_model.h5' ada.")
+            st.stop()
 
-            pred = digit_model.predict(arr)
-            angka = np.argmax(pred)
+        pred = digit_model.predict(arr)
+        angka = np.argmax(pred)
+        akurasi = np.max(pred)
 
-            st.markdown(f"<div class='result-box'><h2>🔢 Angka Terdeteksi: <b>{angka}</b></h2></div>", unsafe_allow_html=True)
-            
-            if angka % 2 == 0:
-                st.success(f"✨ Angka {angka} termasuk **Genap**")
-            else:
-                st.warning(f"🔥 Angka {angka} termasuk **Ganjil**")
-        else:
-            st.error("Gambarlah angka terlebih dahulu di kanvas!")
+        hasil = "✅ Genap" if angka % 2 == 0 else "🔥 Ganjil"
 
+        st.image(img, caption="Gambar yang Diuji", use_container_width=True)
+        st.markdown(f"""
+        <div class='result-box'>
+            <h2>📍 Angka Terdeteksi: <b>{angka}</b></h2>
+            <h3>{hasil}</h3>
+            <p>🎯 Keyakinan: <b>{akurasi*100:.2f}%</b></p>
+        </div>
+        """, unsafe_allow_html=True)
+
+# =========================
+# FOOTER
+# =========================
+st.markdown("---")
+st.markdown("<p style='text-align:center; color:gray;'>© 2025 – Ine Lutfia • UTS Big Data & AI 💡</p>", unsafe_allow_html=True)
