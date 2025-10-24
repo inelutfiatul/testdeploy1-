@@ -1,147 +1,260 @@
 import streamlit as st
+from PIL import Image
 import numpy as np
+from ultralytics import YOLO
 import tensorflow as tf
 from tensorflow.keras.preprocessing import image
-from PIL import Image, ImageOps
-import cv2
 import os
 
-# ========================================
-# 💠 CONFIGURASI AWAL
-# ========================================
-st.set_page_config(page_title="Deteksi Wajah & Angka", layout="centered")
+# ==========================
+# 🌌 CONFIG & STYLE
+# ==========================
+st.set_page_config(page_title="AI Dashboard – Ine Lutfia", page_icon="🤖", layout="wide")
 
+# ==== CUSTOM STYLING ====
 st.markdown("""
-    <style>
-    .glass-box {
-        background: rgba(255,255,255,0.1);
-        border-radius: 20px;
-        padding: 20px;
-        text-align: center;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        margin-top: 20px;
-    }
-    .neon-text {
-        color: #00FFCC;
-        font-weight: bold;
-        text-shadow: 0 0 10px #00FFCC, 0 0 20px #00FFCC;
-    }
-    </style>
+<style>
+/* 🌌 BACKGROUND GALAXY ANIMATED */
+@keyframes moveBackground {
+    from {background-position: 0 0;}
+    to {background-position: 1000px 1000px;}
+}
+body {
+    background: radial-gradient(circle at top, #000428, #004e92);
+    background-size: 400% 400%;
+    animation: moveBackground 60s linear infinite;
+    color: white;
+    font-family: 'Poppins', sans-serif;
+}
+
+/* ✨ NEON TITLE */
+.title {
+    text-align: center;
+    font-size: 42px;
+    font-weight: 800;
+    color: #00FFFF;
+    text-shadow: 0 0 20px #00FFFF, 0 0 40px #00FFFF;
+    margin-bottom: 10px;
+}
+
+/* 💫 SUBHEADER */
+.subheader {
+    text-align: center;
+    font-size: 18px;
+    color: #D0F0FF;
+    margin-bottom: 40px;
+}
+
+/* 🧊 GLASS CONTAINER */
+.glass-box {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 4px 30px rgba(0, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    text-align: center;
+    transition: all 0.3s ease-in-out;
+}
+.glass-box:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 35px #00FFFF;
+}
+
+/* 🌟 FLOATING PARTICLES */
+@keyframes floatParticle {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(-800px) rotate(720deg); opacity: 0; }
+}
+.particle {
+    position: fixed;
+    bottom: -50px;
+    background: rgba(0, 255, 255, 0.8);
+    border-radius: 50%;
+    width: 10px;
+    height: 10px;
+    animation: floatParticle linear infinite;
+    z-index: -1;
+}
+
+/* 🎯 NEON TEXT */
+.neon-text {
+    color: #00FFFF;
+    text-shadow: 0 0 10px #00FFFF, 0 0 20px #00FFFF;
+    font-weight: bold;
+    font-size: 24px;
+}
+
+/* 🪞 SIDEBAR STYLE */
+[data-testid="stSidebar"] {
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(12px);
+    border-right: 2px solid rgba(0,255,255,0.3);
+}
+[data-testid="stSidebar"] h2, [data-testid="stSidebar"] span {
+    color: #B0E0E6 !important;
+}
+
+/* 🧿 FOOTER */
+.footer {
+    text-align: center;
+    color: #B0E0E6;
+    font-size: 13px;
+    margin-top: 60px;
+    opacity: 0.8;
+}
+
+/* 🌠 SCROLLBAR CUSTOM */
+::-webkit-scrollbar {
+    width: 10px;
+}
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #00FFFF, #004e92);
+    border-radius: 10px;
+}
+</style>
+
+<!-- 🔮 PARTICLE GENERATOR -->
+<script>
+let particleCount = 25;
+for (let i = 0; i < particleCount; i++) {
+    let particle = document.createElement('div');
+    particle.classList.add('particle');
+    particle.style.left = Math.random() * 100 + 'vw';
+    particle.style.animationDuration = (5 + Math.random() * 5) + 's';
+    particle.style.width = particle.style.height = (5 + Math.random() * 10) + 'px';
+    document.body.appendChild(particle);
+}
+</script>
 """, unsafe_allow_html=True)
 
-# ========================================
-# 🔹 LOAD MODEL
-# ========================================
-try:
-    face_model = tf.keras.models.load_model("face_emotion_model.h5")
-    digit_model = tf.keras.models.load_model("INELUTFIATULHANIFAH_LAPORAN 2.h5")
-    st.success("✅ Model berhasil dimuat!")
-except Exception as e:
-    st.error(f"❌ Model tidak ditemukan: {e}")
-    st.stop()
+# ==========================
+# 🚀 LOAD MODELS
+# ==========================
+@st.cache_resource
+def load_models():
+    face_path = "model/Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt"
+    digit_path = "model/INELUTFIATULHANIFAH_LAPORAN 2.h5"
 
-# ========================================
-# 🔸 MENU
-# ========================================
-menu = st.sidebar.selectbox("Pilih Mode", ["Ekspresi Wajah", "Digit Angka"])
-show_debug = st.sidebar.checkbox("Tampilkan debug info")
+    if not os.path.exists(face_path):
+        st.error("❌ Model ekspresi wajah (.pt) tidak ditemukan.")
+        st.stop()
+    if not os.path.exists(digit_path):
+        st.error("❌ Model digit angka (.h5) tidak ditemukan.")
+        st.stop()
 
-uploaded_file = st.file_uploader("Unggah gambar", type=["jpg", "jpeg", "png"])
+    face_model = YOLO(face_path)
+    digit_model = tf.keras.models.load_model(digit_path)
+    return face_model, digit_model
 
+face_model, digit_model = load_models()
+
+# ==========================
+# 🧠 HEADER
+# ==========================
+st.markdown("<div class='title'>🌌 AI Dashboard: Ekspresi Wajah & Digit Angka</div>", unsafe_allow_html=True)
+st.markdown("<div class='subheader'>Proyek UTS – Big Data & Artificial Intelligence | by <b>Ine Lutfia</b></div>", unsafe_allow_html=True)
+
+# ==========================
+# ⚙️ SIDEBAR
+# ==========================
+st.sidebar.header("⚙️ Pengaturan Mode")
+if os.path.exists("LOGO USK.png"):
+    st.sidebar.image("LOGO USK.png", width=150)
+menu = st.sidebar.radio("Pilih Analisis:", ["Ekspresi Wajah", "Digit Angka"])
+show_debug = st.sidebar.checkbox("Tampilkan detail prediksi", value=False)
+label_offset = st.sidebar.selectbox("Offset label (jika model mulai dari 1)", [0, -1])
+
+# ==========================
+# 📤 FILE UPLOAD
+# ==========================
+uploaded_file = st.file_uploader("📤 Unggah Gambar", type=["jpg", "jpeg", "png"])
+
+# ==========================
+# 🧩 MAIN LOGIC
+# ==========================
 if uploaded_file is not None:
-    img = Image.open(uploaded_file)
-    st.image(img, caption="Gambar yang diunggah", use_container_width=True)
+    img = Image.open(uploaded_file).convert("RGB")
+    st.image(img, caption="🖼️ Gambar Input", use_container_width=True)
 
-    # ========================================
-    # 🧠 DETEKSI EKSPRESI WAJAH
-    # ========================================
+    # 1️⃣ EKSPRESI WAJAH
     if menu == "Ekspresi Wajah":
-        st.subheader("😊 Hasil Deteksi Ekspresi Wajah")
+        st.subheader("🎭 Deteksi Ekspresi Wajah")
         try:
-            # Pastikan wajah bisa dideteksi
-            img_cv = np.array(img.convert("RGB"))
-            gray = cv2.cvtColor(img_cv, cv2.COLOR_RGB2GRAY)
-            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-            faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+            results = face_model(img)
+            annotated_img = results[0].plot()
+            st.image(annotated_img, caption="📸 Deteksi Wajah", use_container_width=True)
 
-            if len(faces) == 0:
-                st.warning("⚠️ Tidak ada wajah terdeteksi, memproses seluruh gambar sebagai wajah.")
-                face_crop = img_cv
+            if len(results[0].boxes) == 0:
+                st.warning("😅 Tidak ada wajah terdeteksi.")
             else:
-                (x, y, w, h) = faces[0]
-                face_crop = img_cv[y:y+h, x:x+w]
+                boxes = results[0].boxes
+                best_box = boxes[np.argmax([float(b.conf[0]) for b in boxes])]
+                cls = int(best_box.cls[0])
+                conf = float(best_box.conf[0])
+                label = results[0].names.get(cls, "Tidak Dikenal").lower()
 
-            # Resize sesuai model
-            h_model, w_model = face_model.input_shape[1:3]
-            face_resized = cv2.resize(face_crop, (w_model, h_model))
-            face_arr = np.expand_dims(face_resized / 255.0, axis=0)
+                emoji = {
+                    "senang": "😄", "bahagia": "😊", "sedih": "😢",
+                    "marah": "😡", "takut": "😱", "jijik": "🤢"
+                }.get(label, "🙂")
 
-            # Prediksi
-            preds = face_model.predict(face_arr)
-            emotion_idx = int(np.argmax(preds))
-            emotion_conf = float(np.max(preds))
+                st.markdown(f"""
+                    <div class='glass-box'>
+                        <h2 class='neon-text'>{emoji} {label.capitalize()}</h2>
+                        <p>Akurasi Deteksi: <b>{conf*100:.2f}%</b></p>
+                    </div>
+                """, unsafe_allow_html=True)
 
-            labels = ["Marah", "Jijik", "Takut", "Senang", "Sedih", "Kaget", "Netral"]
-            emotion_label = labels[emotion_idx] if emotion_idx < len(labels) else "Tidak diketahui"
-
-            st.markdown(f"""
-                <div class='glass-box'>
-                    <h2 class='neon-text'>{emotion_label}</h2>
-                    <p>Akurasi: <b>{emotion_conf*100:.2f}%</b></p>
-                </div>
-            """, unsafe_allow_html=True)
+                # Respons interaktif
+                if label in ["sedih", "takut"]:
+                    st.info("💬 Jangan khawatir, semuanya akan baik-baik aja 🌈")
+                elif label in ["bahagia", "senang"]:
+                    st.success("💬 Senyummu bikin dunia lebih cerah hari ini! 😄☀️")
+                elif label == "marah":
+                    st.warning("💬 Yuk tarik napas dulu, kamu pasti bisa kendalikan emosi 💪")
 
         except Exception as e:
             st.error(f"❌ Kesalahan deteksi wajah: {e}")
 
-    # ========================================
-    # 🔢 DETEKSI ANGKA (FINAL FIX)
-    # ========================================
+    # 2️⃣ DIGIT ANGKA
     elif menu == "Digit Angka":
-        st.subheader("🔢 Hasil Klasifikasi Angka")
+        st.subheader("🔢 Klasifikasi Angka Tulisan Tangan")
         try:
             input_shape = digit_model.input_shape
-            if len(input_shape) == 4:
-                _, h, w, c = input_shape
-            else:
-                h, w, c = 28, 28, 1
+            size = (input_shape[1], input_shape[2]) if len(input_shape) == 4 else (28, 28)
+            channels = input_shape[3] if len(input_shape) == 4 else 1
 
-            proc = img.convert("L" if c == 1 else "RGB").resize((w, h))
-            arr = np.array(proc)
-
-            # Auto invert jika latar putih
-            if np.mean(arr) > 127:
-                arr = 255 - arr
-
-            arr = arr.astype("float32") / 255.0
-
-            # Pastikan channel sesuai
-            if c == 1 and arr.ndim == 2:
-                arr = np.expand_dims(arr, axis=-1)
-            elif c == 3 and arr.ndim == 2:
-                arr = np.stack([arr]*3, axis=-1)
-
+            proc = img.convert("L" if channels == 1 else "RGB").resize(size)
+            arr = image.img_to_array(proc).astype("float32") / 255.0
             arr = np.expand_dims(arr, axis=0)
 
-            if show_debug:
-                st.write("📏 Shape input:", arr.shape)
-
             pred = digit_model.predict(arr)
-            angka_pred = int(np.argmax(pred))
-            prob = float(np.max(pred))
-
-            if prob < 0.5:
-                st.warning("⚠️ Kepercayaan rendah, gambar mungkin kurang jelas.")
-
-            parity = "✅ GENAP" if angka_pred % 2 == 0 else "⚠️ GANJIL"
+            pred_label = int(np.argmax(pred[0]))
+            prob = float(np.max(pred[0]))
+            if label_offset == -1:
+                pred_label -= 1
+            pred_label = pred_label % 10
+            parity = "✅ GENAP" if pred_label % 2 == 0 else "⚠️ GANJIL"
 
             st.markdown(f"""
                 <div class='glass-box'>
-                    <h2 class='neon-text'>Angka: {angka_pred}</h2>
+                    <h2 class='neon-text'>Angka: {pred_label}</h2>
                     <p>Akurasi: <b>{prob*100:.2f}%</b></p>
                     <p>{parity}</p>
                 </div>
             """, unsafe_allow_html=True)
 
+            if show_debug:
+                st.write("📊 Detail Prediksi Mentah:", pred)
+
         except Exception as e:
-            st.error(f"❌ Kesalahan saat klasifikasi digit: {e}")
+            st.error(f"❌ Kesalahan klasifikasi digit: {e}")
+
+else:
+    st.info("⬆️ Silakan unggah gambar untuk mulai analisis.")
+
+# ==========================
+# 🌙 FOOTER
+# ==========================
+st.markdown("<div class='footer'>✨ © 2025 – Ine Lutfia | UTS Big Data & AI Dashboard</div>", unsafe_allow_html=True)
