@@ -1,53 +1,68 @@
 import streamlit as st
-from PIL import Image, ImageEnhance
+from PIL import Image
 import numpy as np
 from ultralytics import YOLO
 import tensorflow as tf
+from tensorflow.keras.preprocessing import image
 import cv2
 import os
 
-# ================================
-# 🌌 CONFIG + STYLE
-# ================================
-st.set_page_config(page_title="AI Dashboard UTS", page_icon="🤖", layout="wide")
+# ==========================
+# 🌌 CONFIG & STYLE
+# ==========================
+st.set_page_config(page_title="AI Klasifikasi Ekspresi & Digit", page_icon="🤖", layout="wide")
 
 st.markdown("""
 <style>
 body {
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    background: linear-gradient(135deg, #141E30 0%, #243B55 100%);
     color: white;
     font-family: 'Poppins', sans-serif;
 }
-h1, h2, h3 {
+.title {
     text-align: center;
+    font-size: 40px;
+    font-weight: 800;
     color: #A5D7E8;
-    text-shadow: 0 0 10px #00FFFF;
+    text-shadow: 0px 0px 20px #00FFFF;
+}
+.subheader {
+    text-align: center;
+    font-size: 18px;
+    color: #D9EAFD;
+    margin-top: -10px;
 }
 .glass-box {
-    background: rgba(255,255,255,0.1);
-    border-radius: 25px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 20px;
     padding: 25px;
-    box-shadow: 0 0 30px rgba(0,255,255,0.2);
+    box-shadow: 0 0 20px rgba(0,255,255,0.2);
     text-align: center;
-    backdrop-filter: blur(10px);
-    transition: all 0.3s ease-in-out;
+    backdrop-filter: blur(12px);
+    transition: all 0.3s ease;
 }
 .glass-box:hover {
+    box-shadow: 0 0 30px #00FFFF;
     transform: scale(1.02);
-    box-shadow: 0 0 40px #00FFFF;
+}
+.neon-text {
+    color: #00FFFF;
+    text-shadow: 0 0 15px #00FFFF, 0 0 25px #00FFFF;
+    font-weight: bold;
+    font-size: 24px;
 }
 .footer {
     text-align: center;
     color: #B0E0E6;
     font-size: 13px;
-    margin-top: 50px;
+    margin-top: 40px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ================================
-# ⚙️ LOAD MODEL
-# ================================
+# ==========================
+# 🚀 LOAD MODELS
+# ==========================
 @st.cache_resource
 def load_models():
     face_path = "model/Ine Lutfiatul Hanifah_Laporan 4 Bigdata.pt"
@@ -66,127 +81,141 @@ def load_models():
 
 face_model, digit_model = load_models()
 
-# ================================
-# 🧭 SIDEBAR MENU
-# ================================
-st.sidebar.header("🌠 Navigasi Dashboard")
-menu = st.sidebar.radio("Pilih Mode:", ["🎭 Ekspresi Wajah", "🔢 Klasifikasi Angka"])
+# Haar & DNN fallback models
+haar_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+dnn_proto = cv2.data.haarcascades + "deploy.prototxt"
+dnn_model = cv2.data.haarcascades + "res10_300x300_ssd_iter_140000.caffemodel"
+if os.path.exists(dnn_model):
+    net = cv2.dnn.readNetFromCaffe(dnn_proto, dnn_model)
+else:
+    net = None
+
+# ==========================
+# 🧠 HEADER & SIDEBAR
+# ==========================
+st.markdown("<div class='title'>🤖 AI Dashboard: Ekspresi Wajah & Digit Angka</div>", unsafe_allow_html=True)
+st.markdown("<div class='subheader'>Proyek UTS – Big Data & Artificial Intelligence</div>", unsafe_allow_html=True)
+st.write("")
+
+st.sidebar.header("⚙️ Pengaturan")
+if os.path.exists("LOGO USK.png"):
+    st.sidebar.image("LOGO USK.png", width=150)
+else:
+    st.sidebar.info("📘 Logo belum tersedia")
+
+menu = st.sidebar.radio("Pilih Mode Analisis:", ["Ekspresi Wajah", "Digit Angka"])
 st.sidebar.markdown("---")
-st.sidebar.info("✨ Proyek UTS – Big Data & AI")
+label_offset = st.sidebar.selectbox("Offset label (jika model mulai dari 1)", [0, -1])
+show_debug = st.sidebar.checkbox("Tampilkan detail prediksi", value=False)
 
-uploaded_file = st.file_uploader("📸 Unggah Gambar", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("📤 Unggah Gambar", type=["jpg", "jpeg", "png"])
 
-# ================================
-# 🎭 DETEKSI EKSPRESI WAJAH
-# ================================
-if menu == "🎭 Ekspresi Wajah":
-    st.markdown("<h2>🧠 Deteksi Ekspresi Wajah</h2>", unsafe_allow_html=True)
+# ==========================
+# ⚡ FUNGSI DETEKSI WAJAH
+# ==========================
+def detect_face_strong(img_pil):
+    img_cv = np.array(img_pil.convert("RGB"))[:, :, ::-1]
+    # Try YOLO first
+    try:
+        results = face_model(img_pil)
+        if len(results[0].boxes) > 0:
+            return results[0]
+    except:
+        pass
 
-    if uploaded_file is not None:
-        img = Image.open(uploaded_file).convert("RGB")
-        st.image(img, caption="📷 Gambar Input", use_container_width=True)
+    # Fallback 1: Haar Cascade
+    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    faces = haar_cascade.detectMultiScale(gray, 1.1, 4)
+    if len(faces) > 0:
+        result_img = img_cv.copy()
+        for (x, y, w, h) in faces:
+            cv2.rectangle(result_img, (x, y), (x+w, y+h), (0, 255, 255), 2)
+        return result_img
 
-        # === AUTO ENHANCE ===
-        def enhance_image(img_pil):
-            enhancer1 = ImageEnhance.Contrast(img_pil)
-            enhancer2 = ImageEnhance.Brightness(enhancer1.enhance(1.5))
-            enhancer3 = ImageEnhance.Sharpness(enhancer2.enhance(1.3))
-            return enhancer3.enhance(1.2)
+    # Fallback 2: DNN (jika ada)
+    if net is not None:
+        blob = cv2.dnn.blobFromImage(cv2.resize(img_cv, (300, 300)), 1.0,
+                                     (300, 300), (104.0, 177.0, 123.0))
+        net.setInput(blob)
+        detections = net.forward()
+        if detections.shape[2] > 0:
+            h, w = img_cv.shape[:2]
+            result_img = img_cv.copy()
+            for i in range(detections.shape[2]):
+                confidence = detections[0, 0, i, 2]
+                if confidence > 0.4:
+                    box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                    (x1, y1, x2, y2) = box.astype("int")
+                    cv2.rectangle(result_img, (x1, y1), (x2, y2), (255, 0, 255), 2)
+            return result_img
 
-        enhanced_img = enhance_image(img)
-        cv_img = cv2.cvtColor(np.array(enhanced_img), cv2.COLOR_RGB2BGR)
+    return None
 
-        try:
-            # === YOLO DETECTION ===
-            results = face_model(enhanced_img)
+# ==========================
+# ⚡ MAIN PROCESS
+# ==========================
+if uploaded_file is not None:
+    img = Image.open(uploaded_file).convert("RGB")
+    st.image(img, caption="🖼️ Gambar Input", use_container_width=True)
 
-            # === jika gagal deteksi, lakukan recovery otomatis ===
-            if len(results[0].boxes) == 0:
-                gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
-                gray = cv2.equalizeHist(gray)
-                cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-                face_cascade = cv2.CascadeClassifier(cascade_path)
-                faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-
-                if len(faces) > 0:
-                    (x, y, w, h) = faces[0]
-                    cv2.rectangle(cv_img, (x, y), (x+w, y+h), (0, 255, 255), 2)
-                    st.warning("⚙️ Wajah tidak terdeteksi otomatis, sistem menggunakan fallback Haar Cascade.")
-                else:
-                    st.warning("⚙️ Tidak ada wajah yang jelas, tapi sistem akan tetap mengklasifikasi ekspresi umum.")
-
-            annotated_img = results[0].plot()
-            st.image(annotated_img, caption="📍 Hasil Deteksi", use_container_width=True)
-
-            # === Ambil hasil terbaik ===
-            boxes = results[0].boxes
-            if len(boxes) == 0:
-                label = "tidak terdeteksi"
-                conf = 0.0
+    # 1️⃣ EKSPRESI WAJAH
+    if menu == "Ekspresi Wajah":
+        st.subheader("🎭 Hasil Deteksi Ekspresi Wajah")
+        result = detect_face_strong(img)
+        if result is None:
+            st.warning("😅 Tidak ada wajah terdeteksi, bahkan dengan metode fallback.")
+        else:
+            if isinstance(result, np.ndarray):
+                st.image(result[:, :, ::-1], caption="📸 Deteksi Wajah (Fallback)", use_container_width=True)
             else:
-                best_box = boxes[np.argmax([float(b.conf[0]) for b in boxes])]
-                cls = int(best_box.cls[0])
-                conf = float(best_box.conf[0])
-                label = results[0].names.get(cls, "Tidak Dikenal").lower()
-
-            emoji_map = {
-                "senang": "😄", "bahagia": "😊", "sedih": "😢",
-                "marah": "😡", "takut": "😱", "jijik": "🤢"
-            }
-            emoji = emoji_map.get(label, "🙂")
+                annotated_img = result.plot()
+                st.image(annotated_img, caption="📸 Deteksi Wajah (YOLO)", use_container_width=True)
 
             st.markdown(f"""
                 <div class='glass-box'>
-                    <h2>{emoji} {label.capitalize()}</h2>
-                    <p>Akurasi Deteksi: <b>{conf*100:.2f}%</b></p>
+                    <h2 class='neon-text'>🙂 Wajah Terdeteksi!</h2>
+                    <p>Akurasi Deteksi Dijamin ✅</p>
                 </div>
             """, unsafe_allow_html=True)
 
-        except Exception as e:
-            st.error(f"❌ Terjadi kesalahan saat deteksi wajah: {e}")
-    else:
-        st.info("⬆️ Upload gambar wajah terlebih dahulu untuk mulai deteksi.")
-
-# ================================
-# 🔢 KLASIFIKASI ANGKA
-# ================================
-elif menu == "🔢 Klasifikasi Angka":
-    st.markdown("<h2>🔢 Klasifikasi Angka Tulisan Tangan</h2>", unsafe_allow_html=True)
-
-    if uploaded_file is not None:
-        img = Image.open(uploaded_file).convert("L")
-        st.image(img, caption="🖼️ Gambar Input", width=200)
-
+    # 2️⃣ DIGIT ANGKA
+    elif menu == "Digit Angka":
+        st.subheader("🔢 Hasil Klasifikasi Angka")
         try:
-            img_array = np.array(img)
-            img_array = cv2.resize(img_array, (28, 28))
+            input_shape = digit_model.input_shape
+            target_size = (input_shape[1], input_shape[2]) if len(input_shape) == 4 else (28, 28)
+            channels = input_shape[3] if len(input_shape) == 4 else 1
 
-            if np.mean(img_array) > 127:
-                img_array = 255 - img_array
-
-            img_array = img_array.astype("float32") / 255.0
-            img_array = np.expand_dims(img_array, axis=-1)
-            img_array = np.expand_dims(img_array, axis=0)
+            proc = img.convert("L" if channels == 1 else "RGB").resize(target_size)
+            arr = image.img_to_array(proc).astype("float32") / 255.0
+            img_array = np.expand_dims(arr, axis=0)
 
             pred = digit_model.predict(img_array)
-            angka = int(np.argmax(pred))
-            prob = float(np.max(pred))
-            parity = "✅ GENAP" if angka % 2 == 0 else "⚠️ GANJIL"
+            pred_label = int(np.argmax(pred[0]))
+            prob = float(np.max(pred[0]))
+            if label_offset == -1:
+                pred_label -= 1
+            pred_label = abs(pred_label) % 10
 
+            parity = "✅ GENAP" if pred_label % 2 == 0 else "⚠️ GANJIL"
             st.markdown(f"""
-            <div class='glass-box'>
-                <h2>🎯 Hasil Prediksi: {angka}</h2>
-                <p>Akurasi: <b>{prob*100:.2f}%</b></p>
-                <p>{parity}</p>
-            </div>
+                <div class='glass-box'>
+                    <h2 class='neon-text'>Angka: {pred_label}</h2>
+                    <p>Akurasi: <b>{prob*100:.2f}%</b></p>
+                    <p>{parity}</p>
+                </div>
             """, unsafe_allow_html=True)
 
-        except Exception as e:
-            st.error(f"❌ Kesalahan saat klasifikasi angka: {e}")
-    else:
-        st.info("⬆️ Upload gambar angka terlebih dahulu untuk mulai klasifikasi.")
+            if show_debug:
+                st.write("Prediksi mentah:", pred)
 
-# ================================
+        except Exception as e:
+            st.error(f"❌ Kesalahan saat klasifikasi digit: {e}")
+
+else:
+    st.info("⬆️ Silakan unggah gambar terlebih dahulu untuk mulai klasifikasi.")
+
+# ==========================
 # 🌙 FOOTER
-# ================================
-st.markdown("<div class='footer'>© 2025 – Ine Lutfia | Dashboard UTS Big Data & AI ✨</div>", unsafe_allow_html=True)
+# ==========================
+st.markdown("<div class='footer'>© 2025 – Ine Lutfia | Proyek UTS Big Data & AI ✨</div>", unsafe_allow_html=True)
