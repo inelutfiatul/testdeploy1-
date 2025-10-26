@@ -7,7 +7,7 @@ from tensorflow.keras.preprocessing import image
 import os
 
 # ==========================
-# 🌌 CONFIG & STYLE - FINAL SUPER GLOWING VERSION
+# 🌌 CONFIG & STYLE - FINAL SUPER GLOWING VERSION (BLACK TITLE)
 # ==========================
 st.set_page_config(page_title="AI Dashboard – Ine Lutfia", page_icon="🤖", layout="wide")
 
@@ -33,7 +33,7 @@ body {
   text-align: center;
   font-size: 46px;
   font-weight: 800;
-  color: #ffffff;
+  color: #000000; /* 🖤 WARNA JUDUL HITAM */
   text-shadow: 0 0 25px #00FFFF, 0 0 40px #00FFFF, 0 0 60px #00FFFF;
   margin-bottom: 10px;
   letter-spacing: 2px;
@@ -43,7 +43,7 @@ body {
 .subheader {
   text-align: center;
   font-size: 18px;
-  color: #E0FFFF;
+  color: #000000; /* 🖤 WARNA SUBJUDUL HITAM */
   margin-bottom: 45px;
   text-shadow: 0 0 12px rgba(0,255,255,0.6);
 }
